@@ -84,6 +84,17 @@ against that on purpose, and are worth leaving alone:
 - A private journal that is hers alone
 - Backfill: tap any recent date to fill in a missed day
 
+**Export**
+- One file, three shapes: a readable web page (print it or save as PDF), a
+  spreadsheet, or a full JSON backup
+- Built entirely in the browser - nothing is uploaded, no server sees it
+- On a phone it opens the share sheet, so it can go straight to Files, Drive
+  or a message
+- The private journal is **off by default** so it is never sent by accident
+- The partner can export too, but only what is actually being shared - the
+  same Row Level Security decides it, so there is no second set of rules to
+  drift out of step
+
 **Make it look how you want**
 - Light / dark / follow-the-device, 12 accent colours plus any colour you like
 - Warm, neutral or cool background; normal or high contrast
@@ -127,6 +138,7 @@ rather than a blank page.
 ```bash
 npm run typecheck   # tsc, no emit
 npm run test:color  # contrast + hostile-input tests (see below)
+npm run test:export # CSV quoting, HTML escaping, export scoping
 npm run build       # -> dist/
 npm run check       # all three
 ```
@@ -184,6 +196,9 @@ one table means one set of security rules to get right instead of three.
 | `feedback` | his notes to her | it's addressed to them or from them |
 | `appearance` | your own look (jsonb) | **never** - it is personal to each account |
 
+Export adds no tables and needs no migration: it reads what is already there,
+through the same policies as the rest of the app.
+
 Weights and heights are stored in metric and converted for display, so changing
 units never rewrites history. Dates are handled in local time throughout —
 `toISOString()` would file a 9pm entry under tomorrow.
@@ -213,6 +228,11 @@ What was actually checked, and how:
 | Contrast of every accent x light/dark (40 combinations) | all >= 4.5:1, worst 4.59:1 |
 | `sanitizePrefs` vs null/array/string/bad-hex/oversize/proto-pollution | 15/15 handled, no throw |
 | Theme applied end to end in the browser | accent, mode, text size, corners, spacing, card style, font all verified in computed styles |
+| Export: CSV field-count consistency, BOM, CRLF | every row 16 fields, round-trips commas/quotes/newlines |
+| Export: HTML self-containment | 0 script tags, 0 external references |
+| Export: HTML escaping of hostile input | `<script>` rendered as text, not executed |
+| Export: partner scope | labelled shared-only, journal absent, snapshot notice present |
+| Export: filenames from awkward names | `Ana María / O'Brien` -> `ana-mar-a-o-brien-daily-….csv` |
 
 Not yet exercised against a live Supabase project — that needs the credentials
 from [SETUP.md](SETUP.md). The first real sign-up is the remaining test.

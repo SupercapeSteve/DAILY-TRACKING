@@ -508,6 +508,24 @@ export function PartnerSettings() {
       </div>
 
       <div className="stack-s">
+        <p className="section-label">Their data</p>
+        <Card style={{ padding: 0 }}>
+          <button className="entry" style={{ padding: 16 }} onClick={() => navigate('export')}>
+            <span className="dot" style={{ background: 'var(--task)' }}>
+              <Icon name="send" size={20} />
+            </span>
+            <span className="grow">
+              <span className="bold" style={{ display: 'block' }}>Export what is shared</span>
+              <span className="small muted">
+                Save the shared progress as one file you can keep or print.
+              </span>
+            </span>
+            <Icon name="next" size={20} />
+          </button>
+        </Card>
+      </div>
+
+      <div className="stack-s">
         <p className="section-label">Account</p>
         <Card className="stack-s">
           <p className="small muted">Signed in as</p>

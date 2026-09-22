@@ -17,6 +17,8 @@ export default defineConfig({
       { find: /^(\.\.\/)+lib\/auth$/, replacement: here('./mock/auth.tsx') },
       { find: /^\.\/lib\/auth$/, replacement: here('./mock/auth.tsx') },
       { find: /^\.\/lib\/api$/, replacement: here('./mock/api.ts') },
+      // modules that sit inside lib/ and import a sibling, e.g. export.ts
+      { find: /^\.\/api$/, replacement: here('./mock/api.ts') },
     ],
   },
   server: { port: 5199, host: true },

@@ -12,6 +12,7 @@ import Notes from './screens/owner/Notes'
 import Settings from './screens/owner/Settings'
 import Journal from './screens/owner/Journal'
 import Appearance from './screens/owner/Appearance'
+import Export from './screens/owner/Export'
 import { PartnerDashboard, PartnerNotes, PartnerSettings } from './screens/partner/PartnerHome'
 
 const OWNER_TABS: { key: string; label: string; icon: IconName }[] = [
@@ -44,7 +45,7 @@ export default function App() {
     const keys = (isPartner ? PARTNER_TABS : isSolo ? SOLO_TABS : OWNER_TABS).map((t) => t.key)
     // Reachable but not a tab of their own. The journal is owner-only, so a
     // partner landing on it would otherwise get a blank screen.
-    const extra = isPartner ? ['appearance'] : ['journal', 'appearance']
+    const extra = isPartner ? ['appearance', 'export'] : ['journal', 'appearance', 'export']
     if (user && !needsOnboarding && !keys.includes(base) && !extra.includes(base)) {
       go('today', true)
     }
@@ -65,6 +66,7 @@ export default function App() {
           {base === 'notes' && <PartnerNotes />}
           {base === 'settings' && <PartnerSettings />}
           {base === 'appearance' && <Appearance />}
+          {base === 'export' && <Export />}
         </>
       ) : (
         <>
@@ -74,6 +76,7 @@ export default function App() {
           {base === 'settings' && <Settings />}
           {base === 'journal' && <Journal />}
           {base === 'appearance' && <Appearance />}
+          {base === 'export' && <Export />}
         </>
       )}
 
@@ -88,7 +91,8 @@ export default function App() {
             key={t.key}
             className="nav__item"
             data-on={base === t.key
-              || (t.key === 'settings' && (base === 'journal' || base === 'appearance'))}
+              || (t.key === 'settings'
+                  && ['journal', 'appearance', 'export'].includes(base))}
             onClick={() => go(t.key)}
             aria-current={base === t.key ? 'page' : undefined}
           >

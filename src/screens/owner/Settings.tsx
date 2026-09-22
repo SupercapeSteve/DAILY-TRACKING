@@ -283,6 +283,12 @@ export default function Settings() {
                   journal is never included.
                 </p>
               )}
+              {!paused && activeKeys.length > 0 && (
+                <p className="tiny mute-2">
+                  They can also save what you share to their own device, so a copy
+                  may outlive changing your mind here.
+                </p>
+              )}
             </Card>
 
             <Button variant="quiet" block onClick={() => setUnlinkAsk(true)}>
@@ -330,6 +336,25 @@ export default function Settings() {
               <span className="bold" style={{ display: 'block' }}>Appearance</span>
               <span className="small muted">
                 Colours, text size, fonts, corners, spacing - make it yours.
+              </span>
+            </span>
+            <Icon name="next" size={20} />
+          </button>
+        </Card>
+      </div>
+
+      {/* ================================================== EXPORT ======= */}
+      <div className="stack-s">
+        <p className="section-label">Your data</p>
+        <Card style={{ padding: 0 }}>
+          <button className="entry" style={{ padding: 16 }} onClick={() => navigate('export')}>
+            <span className="dot" style={{ background: 'var(--task)' }}>
+              <Icon name="send" size={20} />
+            </span>
+            <span className="grow">
+              <span className="bold" style={{ display: 'block' }}>Export everything</span>
+              <span className="small muted">
+                Save it all as one file - to keep, to print, or to open in a spreadsheet.
               </span>
             </span>
             <Icon name="next" size={20} />

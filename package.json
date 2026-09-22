@@ -1,7 +1,7 @@
 {
   "name": "daily-tracker",
   "private": true,
-  "version": "1.3.0",
+  "version": "1.4.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test:color": "esbuild src/lib/color.ts --bundle --format=esm --outfile=scripts/.tmp/color.bundle.mjs --log-level=warning && esbuild src/lib/theme.ts --bundle --format=esm --outfile=scripts/.tmp/theme.bundle.mjs --log-level=warning && node scripts/test-color.mjs",
-    "check": "npm run typecheck && npm run test:color && npm run build"
+    "check": "npm run typecheck && npm run test:color && npm run test:export && npm run build",
+    "test:export": "esbuild src/lib/exportFormat.ts --bundle --format=esm --outfile=scripts/.tmp/export.bundle.mjs --log-level=warning && node scripts/test-export.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
