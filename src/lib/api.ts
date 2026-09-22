@@ -1,0 +1,375 @@
+import { supabase } from './supabase'
+import { todayISO } from './dates'
+import type {
+  BodyProfile, DayLog, Entry, EntryKind, Feedback, Goal, JournalEntry,
+  PartnerLink, Profile, Role, ShareSettings, WeightLog,
+} from './types'
+
+/** Every query goes through here so errors surface as readable messages. */
+function unwrap<T>(res: { data: T | null; error: { message: string } | null }): T {
+  if (res.error) throw new Error(res.error.message)
+  return res.data as T
+}
+
+/* ------------------------------------------------------------------ profile */
+
+export async function getProfile(userId: string): Promise<Profile | null> {
+  const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
+  if (error) throw new Error(error.message)
+  return data
+}
+
+export async function upsertProfile(p: Partial<Profile> & { id: string }): Promise<Profile> {
+  return unwrap(await supabase.from('profiles').upsert(p).select().single())
+}
+
+/* --------------------------------------------------------------------- link */
+
+/**
+ * The link row, whether I'm the owner or the partner on it.
+ *
+ * One person can legitimately be on TWO rows: someone who signed up as an
+ * owner (which mints them a link row of their own) and later redeemed a
+ * partner code. So this must never assume a single row - `role` decides
+ * which one actually matters to them.
+ */
+export async function getLink(userId: string, role?: Role): Promise<PartnerLink | null> {
+  const { data, error } = await supabase
+    .from('partner_links')
+    .select('*')
+    .or(`owner_id.eq.${userId},partner_id.eq.${userId}`)
+    .order('created_at', { ascending: true })
+  if (error) throw new Error(error.message)
+
+  const rows = (data ?? []) as PartnerLink[]
+  if (rows.length === 0) return null
+  if (role === 'partner') {
+    return rows.find((r) => r.partner_id === userId) ?? rows[0]!
+  }
+  return rows.find((r) => r.owner_id === userId) ?? rows[0]!
+}
+
+/** Owners get a link row (and therefore an invite code) as soon as they exist. */
+export async function ensureLink(ownerId: string): Promise<PartnerLink> {
+  const existing = await getLink(ownerId, 'owner')
+  if (existing && existing.owner_id === ownerId) return existing
+  return unwrap(await supabase.from('partner_links').insert({ owner_id: ownerId }).select().single())
+}
+
+export async function redeemInvite(code: string): Promise<string> {
+  const { data, error } = await supabase.rpc('redeem_invite', { p_code: code.trim() })
+  if (error) throw new Error(error.message.replace(/^.*?:\s*/, ''))
+  return data as string
+}
+
+/** Cuts the partner off completely and issues a fresh code. */
+export async function unlinkPartner(linkId: string): Promise<PartnerLink> {
+  const fresh = await supabase.rpc('new_invite_code')
+  const patch: Record<string, unknown> = {
+    partner_id: null,
+    status: 'pending',
+    accepted_at: null,
+  }
+  if (!fresh.error && fresh.data) patch.invite_code = fresh.data
+  return unwrap(await supabase.from('partner_links').update(patch).eq('id', linkId).select().single())
+}
+
+export interface PartnerViewState {
+  owner_id: string
+  owner_name: string
+  paused: boolean
+  food: boolean
+  workouts: boolean
+  tasks: boolean
+  day: boolean
+  body: boolean
+  goals: boolean
+}
+
+/** What the partner is allowed to know about which switches are on. */
+export async function getPartnerViewState(): Promise<PartnerViewState | null> {
+  const { data, error } = await supabase.rpc('partner_view_state')
+  if (error) throw new Error(error.message)
+  return (data as PartnerViewState | null) ?? null
+}
+
+/* ----------------------------------------------------------- share settings */
+
+export async function getShareSettings(ownerId: string): Promise<ShareSettings | null> {
+  const { data, error } = await supabase
+    .from('share_settings').select('*').eq('owner_id', ownerId).maybeSingle()
+  if (error) throw new Error(error.message)
+  return data
+}
+
+export async function ensureShareSettings(ownerId: string): Promise<ShareSettings> {
+  const existing = await getShareSettings(ownerId)
+  if (existing) return existing
+  // Defaults are all-false in the schema: a new account shares nothing.
+  return unwrap(await supabase.from('share_settings').insert({ owner_id: ownerId }).select().single())
+}
+
+export async function updateShareSettings(
+  ownerId: string, patch: Partial<ShareSettings>,
+): Promise<ShareSettings> {
+  return unwrap(
+    await supabase.from('share_settings')
+      .upsert({ owner_id: ownerId, ...patch, updated_at: new Date().toISOString() })
+      .select().single(),
+  )
+}
+
+/* --------------------------------------------------------------------- body */
+
+export async function getBodyProfile(ownerId: string): Promise<BodyProfile | null> {
+  const { data, error } = await supabase
+    .from('body_profile').select('*').eq('owner_id', ownerId).maybeSingle()
+  if (error) throw new Error(error.message)
+  return data
+}
+
+export async function upsertBodyProfile(
+  ownerId: string, patch: Partial<BodyProfile>,
+): Promise<BodyProfile> {
+  return unwrap(
+    await supabase.from('body_profile')
+      .upsert({ owner_id: ownerId, ...patch, updated_at: new Date().toISOString() })
+      .select().single(),
+  )
+}
+
+/* ------------------------------------------------------------------ weights */
+
+export async function listWeights(ownerId: string, sinceISO?: string): Promise<WeightLog[]> {
+  let q = supabase.from('weight_logs').select('*').eq('owner_id', ownerId)
+  if (sinceISO) q = q.gte('log_date', sinceISO)
+  return unwrap(await q.order('log_date', { ascending: true })) ?? []
+}
+
+export async function upsertWeight(
+  ownerId: string, log_date: string, weight_kg: number, note = '',
+): Promise<WeightLog> {
+  return unwrap(
+    await supabase.from('weight_logs')
+      .upsert({ owner_id: ownerId, log_date, weight_kg, note }, { onConflict: 'owner_id,log_date' })
+      .select().single(),
+  )
+}
+
+export async function deleteWeight(id: string): Promise<void> {
+  const { error } = await supabase.from('weight_logs').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+/* ------------------------------------------------------------------ entries */
+
+export async function listEntries(
+  ownerId: string, fromISO: string, toISO: string,
+): Promise<Entry[]> {
+  return unwrap(
+    await supabase.from('entries').select('*')
+      .eq('owner_id', ownerId)
+      .gte('entry_date', fromISO)
+      .lte('entry_date', toISO)
+      .order('entry_date', { ascending: false })
+      .order('logged_at', { ascending: true }),
+  ) ?? []
+}
+
+export async function createEntry(e: Partial<Entry> & { owner_id: string; kind: EntryKind; title: string }) {
+  return unwrap(await supabase.from('entries').insert(e).select().single())
+}
+
+export async function updateEntry(id: string, patch: Partial<Entry>): Promise<Entry> {
+  return unwrap(await supabase.from('entries').update(patch).eq('id', id).select().single())
+}
+
+export async function deleteEntry(id: string): Promise<void> {
+  const { error } = await supabase.from('entries').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+/**
+ * The things she logs most often, newest-first, for the one-tap chips.
+ * This is the single biggest reason daily logging survives past week one.
+ */
+export async function recentTitles(ownerId: string, kind: EntryKind, limit = 8): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('entries').select('title')
+    .eq('owner_id', ownerId).eq('kind', kind)
+    .order('logged_at', { ascending: false })
+    .limit(120)
+  if (error) throw new Error(error.message)
+
+  // Rows arrive newest-first, so a lower `first` index means more recent.
+  const seen = new Map<string, { n: number; first: number; label: string }>()
+  ;(data ?? []).forEach((r: { title: string | null }, i: number) => {
+    const label = (r.title ?? '').trim()
+    if (!label) return
+    const key = label.toLowerCase()
+    const cur = seen.get(key)
+    if (cur) cur.n++
+    else seen.set(key, { n: 1, first: i, label })
+  })
+
+  return [...seen.values()]
+    .sort((a, b) => b.n - a.n || a.first - b.first) // most used, then most recent
+    .slice(0, limit)
+    .map((v) => v.label)
+}
+
+/* ----------------------------------------------------------------- day logs */
+
+export async function getDayLog(ownerId: string, log_date: string): Promise<DayLog | null> {
+  const { data, error } = await supabase
+    .from('day_logs').select('*').eq('owner_id', ownerId).eq('log_date', log_date).maybeSingle()
+  if (error) throw new Error(error.message)
+  return data
+}
+
+export async function listDayLogs(
+  ownerId: string, fromISO: string, toISO: string,
+): Promise<DayLog[]> {
+  return unwrap(
+    await supabase.from('day_logs').select('*')
+      .eq('owner_id', ownerId)
+      .gte('log_date', fromISO).lte('log_date', toISO)
+      .order('log_date', { ascending: false }),
+  ) ?? []
+}
+
+export async function upsertDayLog(
+  ownerId: string, log_date: string, patch: Partial<DayLog>,
+): Promise<DayLog> {
+  return unwrap(
+    await supabase.from('day_logs')
+      .upsert(
+        { owner_id: ownerId, log_date, ...patch, updated_at: new Date().toISOString() },
+        { onConflict: 'owner_id,log_date' },
+      )
+      .select().single(),
+  )
+}
+
+/* ------------------------------------------------------------------ journal */
+
+export async function getJournal(ownerId: string, log_date: string): Promise<JournalEntry | null> {
+  const { data, error } = await supabase
+    .from('journal_entries').select('*')
+    .eq('owner_id', ownerId).eq('log_date', log_date).maybeSingle()
+  if (error) throw new Error(error.message)
+  return data
+}
+
+export async function listJournal(ownerId: string, limit = 60): Promise<JournalEntry[]> {
+  return unwrap(
+    await supabase.from('journal_entries').select('*')
+      .eq('owner_id', ownerId)
+      .order('log_date', { ascending: false }).limit(limit),
+  ) ?? []
+}
+
+export async function upsertJournal(
+  ownerId: string, log_date: string, body: string,
+): Promise<JournalEntry> {
+  return unwrap(
+    await supabase.from('journal_entries')
+      .upsert(
+        { owner_id: ownerId, log_date, body, updated_at: new Date().toISOString() },
+        { onConflict: 'owner_id,log_date' },
+      )
+      .select().single(),
+  )
+}
+
+export async function deleteJournal(id: string): Promise<void> {
+  const { error } = await supabase.from('journal_entries').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+/* -------------------------------------------------------------------- goals */
+
+export async function listGoals(ownerId: string): Promise<Goal[]> {
+  return unwrap(
+    await supabase.from('goals').select('*')
+      .eq('owner_id', ownerId).eq('active', true)
+      .order('created_at', { ascending: true }),
+  ) ?? []
+}
+
+export async function createGoal(g: Partial<Goal> & { owner_id: string; title: string }): Promise<Goal> {
+  return unwrap(await supabase.from('goals').insert(g).select().single())
+}
+
+export async function updateGoal(id: string, patch: Partial<Goal>): Promise<Goal> {
+  return unwrap(await supabase.from('goals').update(patch).eq('id', id).select().single())
+}
+
+export async function deleteGoal(id: string): Promise<void> {
+  const { error } = await supabase.from('goals').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+/* ----------------------------------------------------------------- feedback */
+
+export async function listFeedback(ownerId: string, limit = 50): Promise<Feedback[]> {
+  return unwrap(
+    await supabase.from('feedback').select('*')
+      .eq('owner_id', ownerId)
+      .order('created_at', { ascending: false }).limit(limit),
+  ) ?? []
+}
+
+export async function sendFeedback(ownerId: string, authorId: string, body: string): Promise<Feedback> {
+  return unwrap(
+    await supabase.from('feedback')
+      .insert({ owner_id: ownerId, author_id: authorId, body: body.trim() })
+      .select().single(),
+  )
+}
+
+export async function reactToFeedback(id: string, reaction: Feedback['reaction']): Promise<Feedback> {
+  return unwrap(await supabase.from('feedback').update({ reaction }).eq('id', id).select().single())
+}
+
+export async function deleteFeedback(id: string): Promise<void> {
+  const { error } = await supabase.from('feedback').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+/* ------------------------------------------------------------------ bundles */
+
+export interface DaySnapshot {
+  date: string
+  entries: Entry[]
+  day: DayLog | null
+}
+
+/** Everything the Today screen needs, in two round trips. */
+export async function loadDay(ownerId: string, date = todayISO()): Promise<DaySnapshot> {
+  const [entries, day] = await Promise.all([
+    listEntries(ownerId, date, date),
+    getDayLog(ownerId, date),
+  ])
+  return { date, entries, day }
+}
+
+export interface RangeSnapshot {
+  entries: Entry[]
+  days: DayLog[]
+  weights: WeightLog[]
+  goals: Goal[]
+}
+
+/** Everything the Progress screen and the partner dashboard need. */
+export async function loadRange(
+  ownerId: string, fromISO: string, toISO: string,
+): Promise<RangeSnapshot> {
+  const [entries, days, weights, goals] = await Promise.all([
+    listEntries(ownerId, fromISO, toISO),
+    listDayLogs(ownerId, fromISO, toISO),
+    listWeights(ownerId, fromISO).catch(() => []),  // blocked by RLS = not shared
+    listGoals(ownerId).catch(() => []),
+  ])
+  return { entries, days, weights, goals }
+}

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- viewport-fit=cover + the safe-area CSS vars keep the bottom bar clear
+         of the iPhone home indicator -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#5B8C6E" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1E1A18" media="(prefers-color-scheme: dark)" />
+    <meta name="description" content="A simple, private daily log for food, workouts, tasks and how your day went." />
+
+    <title>Daily</title>
+
+    <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+
+    <!-- Optional: if she ever taps "Add to Home Screen" it opens without
+         browser chrome. Nothing here requires her to install anything. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Daily" />
+
+    <!-- This is a private personal app; keep it out of search results. -->
+    <meta name="robots" content="noindex, nofollow" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>
+      <div style="font-family: system-ui; padding: 2rem; text-align: center">
+        This app needs JavaScript turned on in your browser.
+      </div>
+    </noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

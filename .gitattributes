@@ -1,0 +1,7 @@
+# Normalize to LF inside the repository so the same files build identically
+# here on Windows and on the Linux box that runs the deploy.
+* text=auto
+
+*.png  binary
+*.webmanifest text
+*.sql  text
