@@ -3,7 +3,7 @@ import { useAuth } from '../lib/auth'
 import { Button, Field, Icon, Input, Banner } from '../components/ui'
 
 export default function Auth() {
-  const { signIn, signUp } = useAuth()
+  const { signIn, signUp, prefs } = useAuth()
   const [mode, setMode] = useState<'in' | 'up'>('in')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -36,7 +36,7 @@ export default function Auth() {
       <div className="brand">
         <div className="brand__mark"><Icon name="heart" size={40} /></div>
         <div>
-          <h1>Daily</h1>
+          <h1>{prefs.appName}</h1>
           <p className="muted" style={{ marginTop: 4 }}>
             Your day, your way - and you choose what gets shared.
           </p>

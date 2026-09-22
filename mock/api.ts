@@ -146,4 +146,7 @@ export const loadRange = (_o: string, from: string, to: string) => ok({
   goals: GOALS,
 })
 
+export const getAppearance = () => ok(null)
+export const saveAppearance = () => ok(undefined)
+
 export const OWNER_ID = OWNER

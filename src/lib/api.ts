@@ -5,9 +5,41 @@ import type {
   PartnerLink, Profile, Role, ShareSettings, WeightLog,
 } from './types'
 
+/**
+ * PostgREST speaks to developers. This translates the handful of failures a
+ * person can actually act on - above all the "schema cache" one, which means
+ * the app is newer than the database and update.sql needs running.
+ */
+export function friendlyDbError(msg: string): string {
+  const m = (msg || '').toLowerCase()
+
+  if (m.includes('schema cache') || /could not find the .+ column/.test(m)) {
+    return 'Your database needs a quick update. Open your Supabase project, '
+      + 'go to the SQL Editor, and run the file supabase/update.sql from the '
+      + 'project folder. Then reload this page.'
+  }
+  if (m.includes('does not exist') && m.includes('relation')) {
+    return 'Your database has not been set up yet. Run supabase/schema.sql in '
+      + 'the Supabase SQL Editor - see SETUP.md.'
+  }
+  if (m.includes('failed to fetch') || m.includes('networkerror') || m.includes('load failed')) {
+    return 'Could not reach the server. Check your internet connection and try again.'
+  }
+  if (m.includes('jwt') || m.includes('expired')) {
+    return 'Your sign-in has expired. Please sign out and back in.'
+  }
+  if (m.includes('row-level security') || m.includes('row level security')) {
+    return 'That was not allowed. You can only change your own information.'
+  }
+  if (m.includes('duplicate key')) {
+    return 'That already exists.'
+  }
+  return msg
+}
+
 /** Every query goes through here so errors surface as readable messages. */
 function unwrap<T>(res: { data: T | null; error: { message: string } | null }): T {
-  if (res.error) throw new Error(res.error.message)
+  if (res.error) throw new Error(friendlyDbError(res.error.message))
   return res.data as T
 }
 
@@ -15,7 +47,7 @@ function unwrap<T>(res: { data: T | null; error: { message: string } | null }): 
 
 export async function getProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(friendlyDbError(error.message))
   return data
 }
 
@@ -39,7 +71,7 @@ export async function getLink(userId: string, role?: Role): Promise<PartnerLink 
     .select('*')
     .or(`owner_id.eq.${userId},partner_id.eq.${userId}`)
     .order('created_at', { ascending: true })
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(friendlyDbError(error.message))
 
   const rows = (data ?? []) as PartnerLink[]
   if (rows.length === 0) return null
@@ -89,7 +121,7 @@ export interface PartnerViewState {
 /** What the partner is allowed to know about which switches are on. */
 export async function getPartnerViewState(): Promise<PartnerViewState | null> {
   const { data, error } = await supabase.rpc('partner_view_state')
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(friendlyDbError(error.message))
   return (data as PartnerViewState | null) ?? null
 }
 
@@ -98,7 +130,7 @@ export async function getPartnerViewState(): Promise<PartnerViewState | null> {
 export async function getShareSettings(ownerId: string): Promise<ShareSettings | null> {
   const { data, error } = await supabase
     .from('share_settings').select('*').eq('owner_id', ownerId).maybeSingle()
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(friendlyDbError(error.message))
   return data
 }
 
@@ -124,7 +156,7 @@ export async function updateShareSettings(
 export async function getBodyProfile(ownerId: string): Promise<BodyProfile | null> {
   const { data, error } = await supabase
     .from('body_profile').select('*').eq('owner_id', ownerId).maybeSingle()
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(friendlyDbError(error.message))
   return data
 }
 
@@ -158,7 +190,7 @@ export async function upsertWeight(
 
 export async function deleteWeight(id: string): Promise<void> {
   const { error } = await supabase.from('weight_logs').delete().eq('id', id)
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(friendlyDbError(error.message))
 }
 
 /* ------------------------------------------------------------------ entries */
@@ -186,7 +218,7 @@ export async function updateEntry(id: string, patch: Partial<Entry>): Promise<En
 
 export async function deleteEntry(id: string): Promise<void> {
   const { error } = await supabase.from('entries').delete().eq('id', id)
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(friendlyDbError(error.message))
 }
 
 /**
@@ -199,7 +231,7 @@ export async function recentTitles(ownerId: string, kind: EntryKind, limit = 8):
     .eq('owner_id', ownerId).eq('kind', kind)
     .order('logged_at', { ascending: false })
     .limit(120)
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(friendlyDbError(error.message))
 
   // Rows arrive newest-first, so a lower `first` index means more recent.
   const seen = new Map<string, { n: number; first: number; label: string }>()
@@ -223,7 +255,7 @@ export async function recentTitles(ownerId: string, kind: EntryKind, limit = 8):
 export async function getDayLog(ownerId: string, log_date: string): Promise<DayLog | null> {
   const { data, error } = await supabase
     .from('day_logs').select('*').eq('owner_id', ownerId).eq('log_date', log_date).maybeSingle()
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(friendlyDbError(error.message))
   return data
 }
 
@@ -257,7 +289,7 @@ export async function getJournal(ownerId: string, log_date: string): Promise<Jou
   const { data, error } = await supabase
     .from('journal_entries').select('*')
     .eq('owner_id', ownerId).eq('log_date', log_date).maybeSingle()
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(friendlyDbError(error.message))
   return data
 }
 
@@ -284,7 +316,7 @@ export async function upsertJournal(
 
 export async function deleteJournal(id: string): Promise<void> {
   const { error } = await supabase.from('journal_entries').delete().eq('id', id)
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(friendlyDbError(error.message))
 }
 
 /* -------------------------------------------------------------------- goals */
@@ -307,7 +339,7 @@ export async function updateGoal(id: string, patch: Partial<Goal>): Promise<Goal
 
 export async function deleteGoal(id: string): Promise<void> {
   const { error } = await supabase.from('goals').delete().eq('id', id)
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(friendlyDbError(error.message))
 }
 
 /* ----------------------------------------------------------------- feedback */
@@ -334,7 +366,28 @@ export async function reactToFeedback(id: string, reaction: Feedback['reaction']
 
 export async function deleteFeedback(id: string): Promise<void> {
   const { error } = await supabase.from('feedback').delete().eq('id', id)
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(friendlyDbError(error.message))
+}
+
+/* --------------------------------------------------------------- appearance */
+
+/**
+ * Stored as jsonb so new look-and-feel options never need a migration.
+ * Returns the raw value - theme.ts sanitises it, because this data is
+ * free-form and a bad value must not be able to break rendering.
+ */
+export async function getAppearance(userId: string): Promise<unknown | null> {
+  const { data, error } = await supabase
+    .from('appearance').select('prefs').eq('user_id', userId).maybeSingle()
+  if (error) throw new Error(friendlyDbError(error.message))
+  return (data as { prefs?: unknown } | null)?.prefs ?? null
+}
+
+export async function saveAppearance(userId: string, prefs: unknown): Promise<void> {
+  const { error } = await supabase.from('appearance').upsert({
+    user_id: userId, prefs, updated_at: new Date().toISOString(),
+  })
+  if (error) throw new Error(friendlyDbError(error.message))
 }
 
 /* ------------------------------------------------------------------ bundles */

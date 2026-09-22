@@ -22,6 +22,7 @@
 -- ---------------------------------------------------------------------------
 -- 0. Clean slate (only drops this app's own objects)
 -- ---------------------------------------------------------------------------
+drop table if exists public.appearance      cascade;
 drop table if exists public.feedback        cascade;
 drop table if exists public.goals           cascade;
 drop table if exists public.journal_entries cascade;
@@ -219,6 +220,21 @@ create table public.feedback (
 );
 create index feedback_owner on public.feedback(owner_id, created_at desc);
 
+-- ---------------------------------------------------------------------------
+-- 11. appearance - each account's own look. Personal to that user; there is
+--     deliberately no partner-facing policy, because how someone themes
+--     their own app is nobody else's business.
+--
+--     One jsonb column on purpose: new customisation options then need no
+--     migration at all. The client validates and falls back to defaults, so
+--     an unknown or malformed key can never break the app.
+-- ---------------------------------------------------------------------------
+create table public.appearance (
+  user_id    uuid primary key references auth.users(id) on delete cascade,
+  prefs      jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
 -- ============================================================================
 --  THE GATE
 --  can_view(owner, category) is the single function every partner-facing
@@ -362,6 +378,7 @@ alter table public.day_logs        enable row level security;
 alter table public.journal_entries enable row level security;
 alter table public.goals           enable row level security;
 alter table public.feedback        enable row level security;
+alter table public.appearance     enable row level security;
 
 -- Nobody who is not signed in gets anything, ever.
 revoke all on all tables in schema public from anon;
@@ -509,6 +526,12 @@ create policy feedback_delete on public.feedback
   for delete to authenticated using (
     owner_id = (select auth.uid()) or author_id = (select auth.uid())
   );
+
+-- --- appearance ------------------------------------------------------------
+-- Your own look, and only ever your own.
+create policy appearance_all_own on public.appearance
+  for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
 
 -- ============================================================================
 --  Done. Every table below should say rls_enabled = true

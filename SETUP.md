@@ -46,15 +46,15 @@ enforced. Not in the app — in the database itself.
    **all of it** (Ctrl+A), copy, and paste it into the box.
 4. Click **Run** (or press Ctrl+Enter).
 
-You should see a results table at the bottom listing 10 tables, every one with
+You should see a results table at the bottom listing 11 tables, every one with
 `rls_enabled = true`. If any row says `false`, stop and tell me.
 
-> If you ever re-run this file it wipes the data and rebuilds from scratch.
-> That's intentional, but don't do it after someone has started logging.
+> **schema.sql wipes and rebuilds.** That's intentional for a new project,
+> but never run it again once someone has started logging.
 >
-> **Already ran an older copy of schema.sql and have data to keep?** Don't
-> re-run it. Instead run `supabase/migrations/001_solo_mode.sql`, which adds
-> "just for me" mode without touching a single row.
+> **Updating an existing database?** Use **`supabase/update.sql`** instead.
+> That one only ever adds things - it never drops a table or deletes a row,
+> and it is safe to run as many times as you like.
 
 ### 1.4 Turn off email confirmation
 
@@ -216,6 +216,17 @@ again" problem.
 ---
 
 # If something goes wrong
+
+**"Could not find the 'solo' column of 'profiles' in the schema cache"**
+(or any other "could not find ... column" message)
+
+Your database is older than the app. Open the Supabase **SQL Editor**, paste in
+**`supabase/update.sql`**, and run it. It adds what's missing without touching
+your data, and the last line of it tells Supabase to refresh the cache that
+produced the error. Then reload the page.
+
+This is also what the in-app message now tells you, instead of showing the raw
+database error.
 
 **"Almost there" screen**
 The two environment variables aren't reaching the site. Path A: check `.env`,

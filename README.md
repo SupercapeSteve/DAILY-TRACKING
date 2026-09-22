@@ -84,6 +84,16 @@ against that on purpose, and are worth leaving alone:
 - A private journal that is hers alone
 - Backfill: tap any recent date to fill in a missed day
 
+**Make it look how you want**
+- Light / dark / follow-the-device, 12 accent colours plus any colour you like
+- Warm, neutral or cool background; normal or high contrast
+- Four text sizes, four font styles
+- Sharp / soft / round corners; compact / comfortable / spacious spacing
+- Raised, flat or outlined cards; your own colour per category
+- Rename the app; turn animations off
+- All of it saves to the **account**, so it follows you to any device you sign
+  in on. Signing out clears the local copy so the next person doesn't inherit it.
+
 **Layout**
 - One codebase, three layouts: phone (bottom tabs), tablet (wider single column),
   desktop (left sidebar + two columns, centred dialogs instead of bottom sheets)
@@ -116,8 +126,24 @@ rather than a blank page.
 
 ```bash
 npm run typecheck   # tsc, no emit
+npm run test:color  # contrast + hostile-input tests (see below)
 npm run build       # -> dist/
+npm run check       # all three
 ```
+
+### Why there is a colour test
+
+`src/lib/color.ts` decides whether text on a coloured button is white or
+black, and nudges the colour when neither is readable enough. Getting that
+wrong is invisible in review - the app looks fine and only *some* accent
+colours come out unreadable. An early version used a luminance threshold and
+shipped white-on-rose at **2.83:1**.
+
+`npm run test:color` bundles the real module and asserts every built-in accent
+plus a set of extreme colours clears **4.5:1** in both light and dark, and that
+`sanitizePrefs` survives 15 kinds of malformed input without throwing. Both
+matter because appearance prefs live in a `jsonb` column and can contain
+anything.
 
 ### Previewing the UI without a backend
 
@@ -156,6 +182,7 @@ one table means one set of security rules to get right instead of three.
 | `journal_entries` | private journal | **never** |
 | `goals` | her targets | `share_goals` |
 | `feedback` | his notes to her | it's addressed to them or from them |
+| `appearance` | your own look (jsonb) | **never** - it is personal to each account |
 
 Weights and heights are stored in metric and converted for display, so changing
 units never rewrites history. Dates are handled in local time throughout —
@@ -183,6 +210,9 @@ What was actually checked, and how:
 | Layout measured at 390px | 66px bottom bar, wrappers collapsed to `contents`, no horizontal overflow |
 | Reading order identical phone vs desktop | verified by page-text comparison |
 | Interactive elements under 40px tall | 0 |
+| Contrast of every accent x light/dark (40 combinations) | all >= 4.5:1, worst 4.59:1 |
+| `sanitizePrefs` vs null/array/string/bad-hex/oversize/proto-pollution | 15/15 handled, no throw |
+| Theme applied end to end in the browser | accent, mode, text size, corners, spacing, card style, font all verified in computed styles |
 
 Not yet exercised against a live Supabase project — that needs the credentials
 from [SETUP.md](SETUP.md). The first real sign-up is the remaining test.

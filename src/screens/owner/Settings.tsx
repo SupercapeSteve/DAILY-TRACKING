@@ -318,6 +318,25 @@ export default function Settings() {
         </Card>
       </div>
 
+      {/* =================================================== LOOK ======== */}
+      <div className="stack-s">
+        <p className="section-label">Look</p>
+        <Card style={{ padding: 0 }}>
+          <button className="entry" style={{ padding: 16 }} onClick={() => navigate('appearance')}>
+            <span className="dot" style={{ background: 'var(--primary)' }}>
+              <Icon name="sparkle" size={20} />
+            </span>
+            <span className="grow">
+              <span className="bold" style={{ display: 'block' }}>Appearance</span>
+              <span className="small muted">
+                Colours, text size, fonts, corners, spacing - make it yours.
+              </span>
+            </span>
+            <Icon name="next" size={20} />
+          </button>
+        </Card>
+      </div>
+
       {/* ==================================================== ABOUT ======= */}
       <div className="stack-s">
         <p className="section-label">About you</p>

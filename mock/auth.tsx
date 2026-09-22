@@ -2,6 +2,7 @@
 // Append ?role=partner to the URL to preview the partner side.
 import type { ReactNode } from 'react'
 import type { PartnerLink, Profile, ShareSettings } from '../src/lib/types'
+import { DEFAULT_PREFS } from '../src/lib/theme'
 
 const OWNER = '00000000-0000-0000-0000-0000000000aa'
 const PARTNER = '00000000-0000-0000-0000-0000000000bb'
@@ -43,6 +44,8 @@ const value = {
   isOwner: !isPartner,
   isPartner,
   isSolo: !isPartner && isSoloPreview,
+  prefs: DEFAULT_PREFS,
+  savePrefs: async () => {},
   needsOnboarding: false,
   refresh: async () => {},
   setShareLocal: () => {},

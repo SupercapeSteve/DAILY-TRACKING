@@ -6,6 +6,10 @@ import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import * as api from './api'
 import type { PartnerLink, Profile, ShareSettings } from './types'
+import {
+  applyTheme, cachePrefs, clearCachedPrefs, DEFAULT_PREFS, readCachedPrefs,
+  sanitizePrefs, type AppearancePrefs,
+} from './theme'
 
 interface AuthValue {
   loading: boolean
@@ -19,6 +23,10 @@ interface AuthValue {
   isPartner: boolean
   /** Using the app alone - nobody else is involved at all. */
   isSolo: boolean
+  /** This account's saved look. Lives in the database, so it follows the
+   *  account onto any device. */
+  prefs: AppearancePrefs
+  savePrefs: (next: AppearancePrefs) => Promise<void>
   /** True until the profile row exists and onboarding has been completed. */
   needsOnboarding: boolean
   refresh: () => Promise<void>
@@ -36,6 +44,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [link, setLink] = useState<PartnerLink | null>(null)
   const [share, setShare] = useState<ShareSettings | null>(null)
+  // Start from the cached look so the right theme paints immediately instead
+  // of flashing the default. The database overwrites this once it loads.
+  const [prefs, setPrefs] = useState<AppearancePrefs>(() => readCachedPrefs() ?? DEFAULT_PREFS)
   const loadingRef = useRef(false)
 
   const user = session?.user ?? null
@@ -44,6 +55,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!u) {
       setProfile(null); setLink(null); setShare(null)
       return
+    }
+
+    // The look is per-account, so load it before anything else - it decides
+    // what the very first painted frame looks like.
+    try {
+      const raw = await api.getAppearance(u.id)
+      const resolved = raw ? sanitizePrefs(raw) : (readCachedPrefs(u.id) ?? DEFAULT_PREFS)
+      setPrefs(resolved)
+      applyTheme(resolved)
+      cachePrefs(u.id, resolved)
+    } catch {
+      // A missing appearance table just means an older database. Not fatal:
+      // fall back to defaults so the app still works.
+      const fallback = readCachedPrefs(u.id) ?? DEFAULT_PREFS
+      setPrefs(fallback)
+      applyTheme(fallback)
     }
     if (loadingRef.current) return
     loadingRef.current = true
@@ -90,6 +117,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { cancelled = true; sub.subscription.unsubscribe() }
   }, [loadContext])
 
+  // When the look is set to follow the device, react to the device changing.
+  useEffect(() => {
+    if (prefs.theme !== 'system') return
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const onChange = () => applyTheme(prefs)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [prefs])
+
   const refresh = useCallback(async () => {
     await loadContext(user)
   }, [loadContext, user])
@@ -106,9 +142,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw new Error(friendlyAuthError(error.message))
   }, [])
 
+  const savePrefs = useCallback(async (next: AppearancePrefs) => {
+    // Apply first so it feels instant, then persist. The database is still
+    // the source of truth; this is only ordering.
+    setPrefs(next)
+    applyTheme(next)
+    if (user) {
+      cachePrefs(user.id, next)
+      await api.saveAppearance(user.id, next)
+    }
+  }, [user])
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut()
     setProfile(null); setLink(null); setShare(null)
+    // Do not leave one account's look behind for the next person to sign in.
+    clearCachedPrefs()
+    setPrefs(DEFAULT_PREFS)
+    applyTheme(DEFAULT_PREFS)
   }, [])
 
   const value = useMemo<AuthValue>(() => {
@@ -125,6 +176,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isOwner,
       isPartner,
       isSolo,
+      prefs,
+      savePrefs,
       needsOnboarding: Boolean(user) && (!profile || !profile.onboarded),
       refresh,
       setShareLocal: setShare,
@@ -132,7 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUp,
       signOut,
     }
-  }, [loading, user, profile, link, share, refresh, signIn, signUp, signOut])
+  }, [loading, user, profile, link, share, prefs, savePrefs, refresh, signIn, signUp, signOut])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

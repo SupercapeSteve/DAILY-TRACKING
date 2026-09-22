@@ -84,7 +84,7 @@ export default function Today() {
       <button
         className="banner"
         onClick={() => navigate('settings')}
-        style={{ width: '100%', textAlign: 'left', cursor: 'pointer', border: '1px solid var(--sage-100)' }}
+        style={{ width: '100%', textAlign: 'left', cursor: 'pointer' }}
       >
         <Icon name={sharingOn ? 'eye' : 'lock'} size={18} />
         <span className="grow small">

@@ -11,6 +11,7 @@ import Progress from './screens/owner/Progress'
 import Notes from './screens/owner/Notes'
 import Settings from './screens/owner/Settings'
 import Journal from './screens/owner/Journal'
+import Appearance from './screens/owner/Appearance'
 import { PartnerDashboard, PartnerNotes, PartnerSettings } from './screens/partner/PartnerHome'
 
 const OWNER_TABS: { key: string; label: string; icon: IconName }[] = [
@@ -34,14 +35,17 @@ const PARTNER_TABS: { key: string; label: string; icon: IconName }[] = [
 ]
 
 export default function App() {
-  const { loading, user, needsOnboarding, isPartner, isSolo } = useAuth()
+  const { loading, user, needsOnboarding, isPartner, isSolo, prefs } = useAuth()
   const [route, go] = useRoute()
   const base = routeBase(route)
 
   // Land on a known tab rather than whatever stale hash was in the URL.
   useEffect(() => {
     const keys = (isPartner ? PARTNER_TABS : isSolo ? SOLO_TABS : OWNER_TABS).map((t) => t.key)
-    if (user && !needsOnboarding && !keys.includes(base) && base !== 'journal') {
+    // Reachable but not a tab of their own. The journal is owner-only, so a
+    // partner landing on it would otherwise get a blank screen.
+    const extra = isPartner ? ['appearance'] : ['journal', 'appearance']
+    if (user && !needsOnboarding && !keys.includes(base) && !extra.includes(base)) {
       go('today', true)
     }
   }, [user, needsOnboarding, isPartner, isSolo, base, go])
@@ -60,6 +64,7 @@ export default function App() {
           {base === 'today' && <PartnerDashboard />}
           {base === 'notes' && <PartnerNotes />}
           {base === 'settings' && <PartnerSettings />}
+          {base === 'appearance' && <Appearance />}
         </>
       ) : (
         <>
@@ -68,6 +73,7 @@ export default function App() {
           {base === 'notes' && !isSolo && <Notes />}
           {base === 'settings' && <Settings />}
           {base === 'journal' && <Journal />}
+          {base === 'appearance' && <Appearance />}
         </>
       )}
 
@@ -75,13 +81,14 @@ export default function App() {
         {/* only visible once the nav becomes a sidebar on wide screens */}
         <div className="nav__brand" aria-hidden="true">
           <span><Icon name="heart" size={19} /></span>
-          <span>Daily</span>
+          <span className="truncate">{prefs.appName}</span>
         </div>
         {tabs.map((t) => (
           <button
             key={t.key}
             className="nav__item"
-            data-on={base === t.key || (t.key === 'settings' && base === 'journal')}
+            data-on={base === t.key
+              || (t.key === 'settings' && (base === 'journal' || base === 'appearance'))}
             onClick={() => go(t.key)}
             aria-current={base === t.key ? 'page' : undefined}
           >

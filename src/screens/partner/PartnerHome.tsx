@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../../lib/auth'
+import { navigate } from '../../lib/router'
 import * as api from '../../lib/api'
 import type { PartnerViewState } from '../../lib/api'
 import {
@@ -486,6 +487,24 @@ export function PartnerSettings() {
           Only they can change these. There is no way for you to turn anything on
           from your side - by design.
         </p>
+      </div>
+
+      <div className="stack-s">
+        <p className="section-label">Look</p>
+        <Card style={{ padding: 0 }}>
+          <button className="entry" style={{ padding: 16 }} onClick={() => navigate('appearance')}>
+            <span className="dot" style={{ background: 'var(--primary)' }}>
+              <Icon name="sparkle" size={20} />
+            </span>
+            <span className="grow">
+              <span className="bold" style={{ display: 'block' }}>Appearance</span>
+              <span className="small muted">
+                Your own colours, text size and layout - separate from theirs.
+              </span>
+            </span>
+            <Icon name="next" size={20} />
+          </button>
+        </Card>
       </div>
 
       <div className="stack-s">
