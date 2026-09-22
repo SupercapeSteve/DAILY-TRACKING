@@ -105,6 +105,10 @@ export default function Progress() {
         <button className="seg__btn" data-on={range === 30} onClick={() => setRange(30)}>Last 30 days</button>
       </div>
 
+      {/* .layout / .col dissolve on phones, so this stacks exactly as before;
+          on wide screens they become two columns. */}
+      <div className="layout">
+        <div className="col">
       {loading ? (
         <div className="row" style={{ justifyContent: 'center', padding: 24 }}><Spinner /></div>
       ) : (
@@ -199,7 +203,13 @@ export default function Progress() {
               </>
             )}
           </Card>
+        </>
+      )}
+        </div>
 
+        <div className="col">
+          {!loading && (
+            <>
           {/* -------------------------------------------------------- goals */}
           <div className="stack-s">
             <div className="row-between">
@@ -236,8 +246,10 @@ export default function Progress() {
               </div>
             )}
           </div>
-        </>
-      )}
+            </>
+          )}
+        </div>
+      </div>
 
       {/* ------------------------------------------------------- weigh sheet */}
       <Sheet open={weighSheet} onClose={() => setWeighSheet(false)} title="Log your weight">

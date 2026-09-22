@@ -30,7 +30,7 @@ export default function Notes() {
   }
 
   return (
-    <div className="screen stack-l">
+    <div className="screen screen--narrow stack-l">
       <div>
         <h1 className="page-title">Notes for you</h1>
         <p className="muted small">Encouragement from your partner.</p>

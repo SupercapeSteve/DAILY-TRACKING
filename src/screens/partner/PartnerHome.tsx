@@ -174,6 +174,11 @@ export function PartnerDashboard() {
             <button className="seg__btn" data-on={range === 30} onClick={() => setRange(30)}>30 days</button>
           </div>
 
+          {/* .layout / .col dissolve on phones; on wide screens they split
+              the page into two columns without changing the reading order. */}
+          <div className="layout">
+          <div className="col">
+
           {/* ---------------------------------------------------- summary */}
           <div className="stack-s">
             <p className="section-label">Last {range} days</p>
@@ -256,6 +261,9 @@ export function PartnerDashboard() {
             </div>
           )}
 
+          </div>
+
+          <div className="col">
           {/* ----------------------------------------------------- recent */}
           <div className="stack-s">
             <p className="section-label">Recent entries</p>
@@ -292,6 +300,8 @@ export function PartnerDashboard() {
           <p className="tiny mute-2 center">
             Some entries may be hidden. {name} can mark anything as private as they write it.
           </p>
+          </div>
+          </div>
         </>
       )}
     </div>
@@ -347,7 +357,7 @@ export function PartnerNotes() {
   }
 
   return (
-    <div className="screen stack-l">
+    <div className="screen screen--narrow stack-l">
       <div>
         <h1 className="page-title">Send a note</h1>
         <p className="muted small">{name} sees these in their app.</p>
@@ -451,7 +461,7 @@ export function PartnerSettings() {
   ] : []
 
   return (
-    <div className="screen stack-l">
+    <div className="screen screen--narrow stack-l">
       <h1 className="page-title">Settings</h1>
 
       <div className="stack-s">

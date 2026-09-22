@@ -44,7 +44,7 @@ export default function Journal() {
   const past = entries.filter((e) => e.log_date !== today && e.body.trim())
 
   return (
-    <div className="screen stack-l">
+    <div className="screen screen--narrow stack-l">
       <div className="row">
         <button className="icon-btn" aria-label="Back" onClick={() => navigate('settings')}>
           <Icon name="back" size={22} />

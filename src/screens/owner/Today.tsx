@@ -102,6 +102,11 @@ export default function Today() {
         <WeekStrip rolls={weekRolls} selected={date} onSelect={setDate} />
       </Card>
 
+      {/* On a phone .layout and .col collapse away entirely, so these sections
+          just stack and the reading order is identical at every width. On a
+          wide screen they become the two content columns. */}
+      <div className="layout">
+        <div className="col">
       {loading ? (
         <div className="row center" style={{ justifyContent: 'center', padding: 20 }}>
           <Spinner />
@@ -223,34 +228,42 @@ export default function Today() {
               </Card>
             )}
           </div>
-
-          {/* ----------------------------------------------------- quick add */}
-          <div className="stack-s">
-            <p className="section-label">Quick add</p>
-            <div className="row" style={{ gap: 8 }}>
-              {([['food', 'Meal'], ['workout', 'Workout'], ['task', 'Task']] as const).map(([k, label]) => (
-                <button key={k} className="card grow" style={{ padding: '14px 8px', cursor: 'pointer', border: 0 }}
-                  onClick={() => openAdd(k)}>
-                  <span className={`dot dot--${k}`} style={{ margin: '0 auto 6px' }}><Icon name={k} size={19} /></span>
-                  <span className="small bold" style={{ display: 'block', textAlign: 'center' }}>{label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {date !== todayISO() && (
-            <Button variant="ghost" block icon="back" onClick={() => setDate(todayISO())}>
-              Back to today
-            </Button>
-          )}
-
-          {date === todayISO() && (
-            <Banner icon="info">
-              Missed a day? Tap any date above to go back and fill it in.
-            </Banner>
-          )}
         </>
       )}
+        </div>
+
+        <div className="col">
+          {!loading && (
+            <>
+              {/* ------------------------------------------------- quick add */}
+              <div className="stack-s">
+                <p className="section-label">Quick add</p>
+                <div className="row" style={{ gap: 8 }}>
+                  {([['food', 'Meal'], ['workout', 'Workout'], ['task', 'Task']] as const).map(([k, label]) => (
+                    <button key={k} className="card grow" style={{ padding: '14px 8px', cursor: 'pointer', border: 0 }}
+                      onClick={() => openAdd(k)}>
+                      <span className={`dot dot--${k}`} style={{ margin: '0 auto 6px' }}><Icon name={k} size={19} /></span>
+                      <span className="small bold" style={{ display: 'block', textAlign: 'center' }}>{label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {date !== todayISO() && (
+                <Button variant="ghost" block icon="back" onClick={() => setDate(todayISO())}>
+                  Back to today
+                </Button>
+              )}
+
+              {date === todayISO() && (
+                <Banner icon="info">
+                  Missed a day? Tap any date above to go back and fill it in.
+                </Banner>
+              )}
+            </>
+          )}
+        </div>
+      </div>
 
       {/* the floating add button */}
       <button className="fab" aria-label="Add something" onClick={() => openAdd()}>

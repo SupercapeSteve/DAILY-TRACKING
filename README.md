@@ -68,6 +68,12 @@ against that on purpose, and are worth leaving alone:
 - A private journal that is hers alone
 - Backfill: tap any recent date to fill in a missed day
 
+**Layout**
+- One codebase, three layouts: phone (bottom tabs), tablet (wider single column),
+  desktop (left sidebar + two columns, centred dialogs instead of bottom sheets)
+- The column wrappers use `display: contents` below 1024px, so they dissolve
+  entirely and the reading order is identical at every width
+
 **For him**
 - Read-only dashboard: today, rolling 7/30 days, trends, charts
 - Explicit "not shared" markers instead of misleading zeros
@@ -154,6 +160,10 @@ What was actually checked, and how:
 | Write policies pinning the row to the caller | 18/18 |
 | Journal reachable by a partner | no policy exists |
 | Screens rendered and inspected on a 375×812 viewport | sign-in, onboarding, today, log sheet, progress, settings, partner dashboard |
+| Layout measured at 1366px | sidebar 244px, content 1100px, 2-col grid 596/398, no horizontal overflow |
+| Layout measured at 390px | 66px bottom bar, wrappers collapsed to `contents`, no horizontal overflow |
+| Reading order identical phone vs desktop | verified by page-text comparison |
+| Interactive elements under 40px tall | 0 |
 
 Not yet exercised against a live Supabase project — that needs the credentials
 from [SETUP.md](SETUP.md). The first real sign-up is the remaining test.

@@ -147,7 +147,7 @@ export default function Settings() {
   const age = ageFrom(body?.birthdate)
 
   return (
-    <div className="screen stack-l">
+    <div className="screen screen--narrow stack-l">
       <h1 className="page-title">Settings</h1>
 
       {/* ================================================== SHARING ======= */}

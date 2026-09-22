@@ -65,6 +65,11 @@ export default function App() {
       )}
 
       <nav className="nav" aria-label="Main">
+        {/* only visible once the nav becomes a sidebar on wide screens */}
+        <div className="nav__brand" aria-hidden="true">
+          <span><Icon name="heart" size={19} /></span>
+          <span>Daily</span>
+        </div>
         {tabs.map((t) => (
           <button
             key={t.key}
