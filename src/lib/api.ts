@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import * as guest from './guest'
 import { todayISO } from './dates'
 import type {
   BodyProfile, DayLog, Entry, EntryKind, Feedback, Goal, JournalEntry,
@@ -37,6 +38,14 @@ export function friendlyDbError(msg: string): string {
   return msg
 }
 
+/**
+ * Reached only if a guest somehow gets to an account-only screen. The UI
+ * should never offer these, so this is a backstop rather than a path.
+ */
+function accountOnly(what: string): never {
+  throw new Error(`${what} needs an account. Tap "Create an account" to keep it properly.`)
+}
+
 /** Every query goes through here so errors surface as readable messages. */
 function unwrap<T>(res: { data: T | null; error: { message: string } | null }): T {
   if (res.error) throw new Error(friendlyDbError(res.error.message))
@@ -46,12 +55,14 @@ function unwrap<T>(res: { data: T | null; error: { message: string } | null }): 
 /* ------------------------------------------------------------------ profile */
 
 export async function getProfile(userId: string): Promise<Profile | null> {
+  if (guest.isGuest()) return guest.getProfile()
   const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
   if (error) throw new Error(friendlyDbError(error.message))
   return data
 }
 
 export async function upsertProfile(p: Partial<Profile> & { id: string }): Promise<Profile> {
+  if (guest.isGuest()) return guest.upsertProfile(p)
   return unwrap(await supabase.from('profiles').upsert(p).select().single())
 }
 
@@ -66,6 +77,7 @@ export async function upsertProfile(p: Partial<Profile> & { id: string }): Promi
  * which one actually matters to them.
  */
 export async function getLink(userId: string, role?: Role): Promise<PartnerLink | null> {
+  if (guest.isGuest()) return null
   const { data, error } = await supabase
     .from('partner_links')
     .select('*')
@@ -128,6 +140,7 @@ export async function getPartnerViewState(): Promise<PartnerViewState | null> {
 /* ----------------------------------------------------------- share settings */
 
 export async function getShareSettings(ownerId: string): Promise<ShareSettings | null> {
+  if (guest.isGuest()) return null
   const { data, error } = await supabase
     .from('share_settings').select('*').eq('owner_id', ownerId).maybeSingle()
   if (error) throw new Error(friendlyDbError(error.message))
@@ -154,6 +167,7 @@ export async function updateShareSettings(
 /* --------------------------------------------------------------------- body */
 
 export async function getBodyProfile(ownerId: string): Promise<BodyProfile | null> {
+  if (guest.isGuest()) return guest.getBodyProfile()
   const { data, error } = await supabase
     .from('body_profile').select('*').eq('owner_id', ownerId).maybeSingle()
   if (error) throw new Error(friendlyDbError(error.message))
@@ -163,6 +177,7 @@ export async function getBodyProfile(ownerId: string): Promise<BodyProfile | nul
 export async function upsertBodyProfile(
   ownerId: string, patch: Partial<BodyProfile>,
 ): Promise<BodyProfile> {
+  if (guest.isGuest()) return guest.upsertBodyProfile(patch)
   return unwrap(
     await supabase.from('body_profile')
       .upsert({ owner_id: ownerId, ...patch, updated_at: new Date().toISOString() })
@@ -173,6 +188,7 @@ export async function upsertBodyProfile(
 /* ------------------------------------------------------------------ weights */
 
 export async function listWeights(ownerId: string, sinceISO?: string): Promise<WeightLog[]> {
+  if (guest.isGuest()) return []
   let q = supabase.from('weight_logs').select('*').eq('owner_id', ownerId)
   if (sinceISO) q = q.gte('log_date', sinceISO)
   return unwrap(await q.order('log_date', { ascending: true })) ?? []
@@ -181,6 +197,7 @@ export async function listWeights(ownerId: string, sinceISO?: string): Promise<W
 export async function upsertWeight(
   ownerId: string, log_date: string, weight_kg: number, note = '',
 ): Promise<WeightLog> {
+  if (guest.isGuest()) accountOnly('Weight tracking')
   return unwrap(
     await supabase.from('weight_logs')
       .upsert({ owner_id: ownerId, log_date, weight_kg, note }, { onConflict: 'owner_id,log_date' })
@@ -198,6 +215,7 @@ export async function deleteWeight(id: string): Promise<void> {
 export async function listEntries(
   ownerId: string, fromISO: string, toISO: string,
 ): Promise<Entry[]> {
+  if (guest.isGuest()) return guest.listEntries(fromISO, toISO)
   return unwrap(
     await supabase.from('entries').select('*')
       .eq('owner_id', ownerId)
@@ -209,16 +227,45 @@ export async function listEntries(
 }
 
 export async function createEntry(e: Partial<Entry> & { owner_id: string; kind: EntryKind; title: string }) {
+  if (guest.isGuest()) return guest.createEntry(e)
   return unwrap(await supabase.from('entries').insert(e).select().single())
 }
 
 export async function updateEntry(id: string, patch: Partial<Entry>): Promise<Entry> {
+  if (guest.isGuest()) return guest.updateEntry(id, patch)
   return unwrap(await supabase.from('entries').update(patch).eq('id', id).select().single())
 }
 
 export async function deleteEntry(id: string): Promise<void> {
+  if (guest.isGuest()) return guest.deleteEntry(id)
   const { error } = await supabase.from('entries').delete().eq('id', id)
   if (error) throw new Error(friendlyDbError(error.message))
+}
+
+/**
+ * Bulk insert, used when a guest signs up and brings their log with them.
+ * One round trip instead of one per entry, which matters when someone has
+ * been trying the app for a fortnight before deciding.
+ */
+export async function createEntries(
+  rows: (Partial<Entry> & { owner_id: string; kind: EntryKind; title: string })[],
+): Promise<number> {
+  if (!rows.length) return 0
+  if (guest.isGuest()) accountOnly('Importing')
+  const { error } = await supabase.from('entries').insert(rows)
+  if (error) throw new Error(friendlyDbError(error.message))
+  return rows.length
+}
+
+export async function upsertDayLogs(
+  rows: (Partial<DayLog> & { owner_id: string; log_date: string })[],
+): Promise<number> {
+  if (!rows.length) return 0
+  if (guest.isGuest()) accountOnly('Importing')
+  const { error } = await supabase.from('day_logs')
+    .upsert(rows, { onConflict: 'owner_id,log_date' })
+  if (error) throw new Error(friendlyDbError(error.message))
+  return rows.length
 }
 
 /**
@@ -226,6 +273,7 @@ export async function deleteEntry(id: string): Promise<void> {
  * This is the single biggest reason daily logging survives past week one.
  */
 export async function recentTitles(ownerId: string, kind: EntryKind, limit = 8): Promise<string[]> {
+  if (guest.isGuest()) return guest.recentTitles(kind, limit)
   const { data, error } = await supabase
     .from('entries').select('title')
     .eq('owner_id', ownerId).eq('kind', kind)
@@ -253,6 +301,7 @@ export async function recentTitles(ownerId: string, kind: EntryKind, limit = 8):
 /* ----------------------------------------------------------------- day logs */
 
 export async function getDayLog(ownerId: string, log_date: string): Promise<DayLog | null> {
+  if (guest.isGuest()) return guest.getDayLog(log_date)
   const { data, error } = await supabase
     .from('day_logs').select('*').eq('owner_id', ownerId).eq('log_date', log_date).maybeSingle()
   if (error) throw new Error(friendlyDbError(error.message))
@@ -262,6 +311,7 @@ export async function getDayLog(ownerId: string, log_date: string): Promise<DayL
 export async function listDayLogs(
   ownerId: string, fromISO: string, toISO: string,
 ): Promise<DayLog[]> {
+  if (guest.isGuest()) return guest.listDayLogs(fromISO, toISO)
   return unwrap(
     await supabase.from('day_logs').select('*')
       .eq('owner_id', ownerId)
@@ -273,6 +323,7 @@ export async function listDayLogs(
 export async function upsertDayLog(
   ownerId: string, log_date: string, patch: Partial<DayLog>,
 ): Promise<DayLog> {
+  if (guest.isGuest()) return guest.upsertDayLog(log_date, patch)
   return unwrap(
     await supabase.from('day_logs')
       .upsert(
@@ -294,6 +345,7 @@ export async function getJournal(ownerId: string, log_date: string): Promise<Jou
 }
 
 export async function listJournal(ownerId: string, limit = 60): Promise<JournalEntry[]> {
+  if (guest.isGuest()) return []
   return unwrap(
     await supabase.from('journal_entries').select('*')
       .eq('owner_id', ownerId)
@@ -322,6 +374,7 @@ export async function deleteJournal(id: string): Promise<void> {
 /* -------------------------------------------------------------------- goals */
 
 export async function listGoals(ownerId: string): Promise<Goal[]> {
+  if (guest.isGuest()) return []
   return unwrap(
     await supabase.from('goals').select('*')
       .eq('owner_id', ownerId).eq('active', true)
@@ -330,6 +383,7 @@ export async function listGoals(ownerId: string): Promise<Goal[]> {
 }
 
 export async function createGoal(g: Partial<Goal> & { owner_id: string; title: string }): Promise<Goal> {
+  if (guest.isGuest()) accountOnly('Goals')
   return unwrap(await supabase.from('goals').insert(g).select().single())
 }
 
@@ -345,6 +399,7 @@ export async function deleteGoal(id: string): Promise<void> {
 /* ----------------------------------------------------------------- feedback */
 
 export async function listFeedback(ownerId: string, limit = 50): Promise<Feedback[]> {
+  if (guest.isGuest()) return []
   return unwrap(
     await supabase.from('feedback').select('*')
       .eq('owner_id', ownerId)
@@ -377,6 +432,8 @@ export async function deleteFeedback(id: string): Promise<void> {
  * free-form and a bad value must not be able to break rendering.
  */
 export async function getAppearance(userId: string): Promise<unknown | null> {
+  // A guest's look lives in the same local cache the theme already uses.
+  if (guest.isGuest()) return null
   const { data, error } = await supabase
     .from('appearance').select('prefs').eq('user_id', userId).maybeSingle()
   if (error) throw new Error(friendlyDbError(error.message))
@@ -384,6 +441,7 @@ export async function getAppearance(userId: string): Promise<unknown | null> {
 }
 
 export async function saveAppearance(userId: string, prefs: unknown): Promise<void> {
+  if (guest.isGuest()) return
   const { error } = await supabase.from('appearance').upsert({
     user_id: userId, prefs, updated_at: new Date().toISOString(),
   })

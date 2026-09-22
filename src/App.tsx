@@ -13,6 +13,7 @@ import Settings from './screens/owner/Settings'
 import Journal from './screens/owner/Journal'
 import Appearance from './screens/owner/Appearance'
 import Export from './screens/owner/Export'
+import GuestImportPrompt from './components/GuestImportPrompt'
 import { PartnerDashboard, PartnerNotes, PartnerSettings } from './screens/partner/PartnerHome'
 
 const OWNER_TABS: { key: string; label: string; icon: IconName }[] = [
@@ -102,6 +103,7 @@ export default function App() {
         ))}
       </nav>
 
+      <GuestImportPrompt />
       <ToastHost />
     </div>
   )

@@ -7,10 +7,24 @@ gets a **read-only** view of **only what you choose to show them**.
 It is a website, not an app. You open a link on your phone and you're in. There
 is nothing to download and no install step, ever.
 
-## Two ways to use it
+## Three ways to use it
 
-You pick one when you create the account, and you can switch either direction
-later in Settings.
+**Without an account at all.** Tap *Have a look around first* on the sign-in
+screen and start logging immediately. Everything lives in that browser's
+localStorage and never touches Supabase — which is also exactly why a guest
+cannot share with a partner: there is no account for the database to grant
+anything to.
+
+Guests get the core loop: meals, workouts, tasks, the daily check-in, the last
+7 days, the full appearance settings, and export. An account adds partner
+sharing, weight tracking, goals, the private journal, unlimited history, and
+the thing a browser cannot promise — that it will still be there tomorrow.
+
+Trying it is not a trap: anything logged as a guest can be carried into a real
+account afterwards, and *Not now* never deletes it.
+
+Then, once you have an account, you pick one of these — and can switch either
+direction later in Settings.
 
 - **Just for me** — nobody else is involved. No invite code, no sharing
   controls, no per-entry privacy switches, and the notes tab is gone. While
@@ -83,6 +97,12 @@ against that on purpose, and are worth leaving alone:
 - Streaks, week strip, 7/30-day rollups
 - A private journal that is hers alone
 - Backfill: tap any recent date to fill in a missed day
+
+**Guest mode**
+- No sign-up needed to start logging
+- Stored only in that browser; a bulk import carries it into an account later
+- Account-only features are gated with the honest reason, not a nag
+- Guests can still export, because a browser is the only copy they have
 
 **Export**
 - One file, three shapes: a readable web page (print it or save as PDF), a
@@ -233,6 +253,10 @@ What was actually checked, and how:
 | Export: HTML escaping of hostile input | `<script>` rendered as text, not executed |
 | Export: partner scope | labelled shared-only, journal absent, snapshot notice present |
 | Export: filenames from awkward names | `Ana María / O'Brien` -> `ana-mar-a-o-brien-daily-….csv` |
+| Guest mode drives the real app with no backend | entered, logged a meal, survived a reload |
+| Guest network traffic to Supabase | **0 requests** — verified in the network log |
+| Guest locked features | weights/goals/journal return empty, no errors |
+| Guest export | gathers local data, builds HTML + CSV |
 
 Not yet exercised against a live Supabase project — that needs the credentials
 from [SETUP.md](SETUP.md). The first real sign-up is the remaining test.

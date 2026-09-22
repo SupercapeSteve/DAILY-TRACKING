@@ -10,6 +10,20 @@ import {
   applyTheme, cachePrefs, clearCachedPrefs, DEFAULT_PREFS, readCachedPrefs,
   sanitizePrefs, type AppearancePrefs,
 } from './theme'
+import * as guestLib from './guest'
+
+/**
+ * A stand-in so every screen can keep using `user.id` unchanged. It is never
+ * sent anywhere: each function in api.ts checks guest mode and answers from
+ * localStorage before it can reach Supabase.
+ */
+const GUEST_USER = {
+  id: guestLib.GUEST_ID,
+  aud: 'guest',
+  app_metadata: {},
+  user_metadata: {},
+  created_at: '',
+} as unknown as User
 
 interface AuthValue {
   loading: boolean
@@ -23,6 +37,12 @@ interface AuthValue {
   isPartner: boolean
   /** Using the app alone - nobody else is involved at all. */
   isSolo: boolean
+  /** Using it without an account. Data is in this browser only. */
+  isGuest: boolean
+  /** Start looking around without signing up. */
+  enterGuest: () => void
+  /** Leave guest mode. Keeps what was logged unless `wipe`. */
+  exitGuest: (wipe?: boolean) => void
   /** This account's saved look. Lives in the database, so it follows the
    *  account onto any device. */
   prefs: AppearancePrefs
@@ -47,9 +67,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Start from the cached look so the right theme paints immediately instead
   // of flashing the default. The database overwrites this once it loads.
   const [prefs, setPrefs] = useState<AppearancePrefs>(() => readCachedPrefs() ?? DEFAULT_PREFS)
+  const [guestMode, setGuestMode] = useState(() => guestLib.isGuest())
   const loadingRef = useRef(false)
 
-  const user = session?.user ?? null
+  // A real session always wins over guest mode.
+  const user = session?.user ?? (guestMode ? GUEST_USER : null)
 
   const loadContext = useCallback(async (u: User | null) => {
     if (!u) {
@@ -81,8 +103,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const l = await api.getLink(u.id, p?.role).catch(() => null)
       setLink(l)
 
-      // Only the owner can read her own switches; the partner never can.
-      if (p && p.role === 'owner') {
+      // A guest has no account, so there is nothing to share and nobody to
+      // share with. Skip both rather than letting an insert reach the server.
+      if (guestLib.isGuest()) {
+        setShare(null)
+      } else if (p && p.role === 'owner') {
         setShare(await api.ensureShareSettings(u.id).catch(() => null))
         // An owner always needs an invite code to show. A solo user does not:
         // minting one would be creating the very thing they opted out of.
@@ -101,7 +126,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(async ({ data }) => {
       if (cancelled) return
       setSession(data.session)
-      await loadContext(data.session?.user ?? null)
+      if (data.session?.user) await loadContext(data.session.user)
+      else if (guestLib.isGuest()) await loadContext(GUEST_USER)
       if (!cancelled) setLoading(false)
     })
 
@@ -153,9 +179,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user])
 
+  const enterGuest = useCallback(() => {
+    guestLib.enterGuest()
+    // Set the profile synchronously: loadContext is async, and for one frame
+    // a missing profile would read as "needs onboarding" and flash that screen.
+    setProfile(guestLib.getProfile())
+    setGuestMode(true)
+    void loadContext(GUEST_USER)
+  }, [loadContext])
+
+  const exitGuest = useCallback((wipe = false) => {
+    guestLib.leaveGuest(wipe)
+    setGuestMode(false)
+    setProfile(null); setLink(null); setShare(null)
+  }, [])
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut()
     setProfile(null); setLink(null); setShare(null)
+    guestLib.leaveGuest()
+    setGuestMode(false)
     // Do not leave one account's look behind for the next person to sign in.
     clearCachedPrefs()
     setPrefs(DEFAULT_PREFS)
@@ -176,6 +219,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isOwner,
       isPartner,
       isSolo,
+      isGuest: guestMode && !session,
+      enterGuest,
+      exitGuest,
       prefs,
       savePrefs,
       needsOnboarding: Boolean(user) && (!profile || !profile.onboarded),
@@ -185,7 +231,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUp,
       signOut,
     }
-  }, [loading, user, profile, link, share, prefs, savePrefs, refresh, signIn, signUp, signOut])
+  }, [loading, user, profile, link, share, prefs, savePrefs, guestMode, session,
+      enterGuest, exitGuest, refresh, signIn, signUp, signOut])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

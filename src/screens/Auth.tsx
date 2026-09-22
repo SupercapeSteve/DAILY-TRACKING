@@ -3,7 +3,7 @@ import { useAuth } from '../lib/auth'
 import { Button, Field, Icon, Input, Banner } from '../components/ui'
 
 export default function Auth() {
-  const { signIn, signUp, prefs } = useAuth()
+  const { signIn, signUp, prefs, enterGuest } = useAuth()
   const [mode, setMode] = useState<'in' | 'up'>('in')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -92,6 +92,22 @@ export default function Auth() {
       <Banner icon="lock">
         You stay signed in on this phone, so you should only ever have to do this once.
       </Banner>
+
+      <div className="row" aria-hidden="true">
+        <hr className="divider grow" />
+        <span className="tiny mute-2">or</span>
+        <hr className="divider grow" />
+      </div>
+
+      <div className="stack-s">
+        <Button variant="ghost" block size="lg" icon="next" onClick={enterGuest}>
+          Have a look around first
+        </Button>
+        <p className="tiny mute-2 center">
+          Log a few things without signing up. It stays on this device only -
+          and you can bring it with you if you make an account later.
+        </p>
+      </div>
     </div>
   )
 }

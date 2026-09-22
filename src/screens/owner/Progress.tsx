@@ -13,6 +13,8 @@ import { ProgressBar, WeekBars, WeightChart } from '../../components/Charts'
 import {
   Button, Card, Empty, Field, Icon, Input, Sheet, Spinner, toast, Confirm,
 } from '../../components/ui'
+import { ACCOUNT_PERKS, GUEST_HISTORY_DAYS } from '../../lib/guest'
+import { navigate } from '../../lib/router'
 
 const GOAL_PRESETS: { metric: GoalMetric; title: string; target: number; unit: string }[] = [
   { metric: 'workouts_per_week', title: 'Workouts each week', target: 4, unit: 'workouts' },
@@ -25,7 +27,7 @@ const GOAL_PRESETS: { metric: GoalMetric; title: string; target: number; unit: s
 ]
 
 export default function Progress() {
-  const { user, profile } = useAuth()
+  const { user, profile, isGuest } = useAuth()
   const units = profile?.units ?? 'imperial'
 
   const [range, setRange] = useState<7 | 30>(7)
@@ -100,10 +102,16 @@ export default function Progress() {
         <p className="muted small">Only you see this page.</p>
       </div>
 
-      <div className="seg">
-        <button className="seg__btn" data-on={range === 7} onClick={() => setRange(7)}>Last 7 days</button>
-        <button className="seg__btn" data-on={range === 30} onClick={() => setRange(30)}>Last 30 days</button>
-      </div>
+      {isGuest ? (
+        <p className="small muted center">
+          Last {GUEST_HISTORY_DAYS} days. An account keeps the lot.
+        </p>
+      ) : (
+        <div className="seg">
+          <button className="seg__btn" data-on={range === 7} onClick={() => setRange(7)}>Last 7 days</button>
+          <button className="seg__btn" data-on={range === 30} onClick={() => setRange(30)}>Last 30 days</button>
+        </div>
+      )}
 
       {/* .layout / .col dissolve on phones, so this stacks exactly as before;
           on wide screens they become two columns. */}
@@ -167,7 +175,35 @@ export default function Progress() {
             </Card>
           )}
 
+          {isGuest && (
+            <Card className="stack-s">
+              <div className="row">
+                <span className="dot" style={{ background: 'var(--primary)' }}>
+                  <Icon name="sparkle" size={20} />
+                </span>
+                <div className="grow">
+                  <p className="bold">More with an account</p>
+                  <p className="small muted">Free, and everything you have logged comes with you.</p>
+                </div>
+              </div>
+              <hr className="divider" />
+              {ACCOUNT_PERKS.map((p) => (
+                <div key={p.title} className="row" style={{ alignItems: 'flex-start' }}>
+                  <Icon name={p.icon} size={17} style={{ color: 'var(--primary)', marginTop: 3, flex: '0 0 auto' }} />
+                  <span className="grow">
+                    <span className="bold small" style={{ display: 'block' }}>{p.title}</span>
+                    <span className="tiny mute-2">{p.why}</span>
+                  </span>
+                </div>
+              ))}
+              <Button variant="primary" block onClick={() => navigate('settings')}>
+                Create an account
+              </Button>
+            </Card>
+          )}
+
           {/* ------------------------------------------------------- weight */}
+          {!isGuest && (
           <Card className="stack">
             <div className="row-between">
               <div>
@@ -203,6 +239,7 @@ export default function Progress() {
               </>
             )}
           </Card>
+          )}
         </>
       )}
         </div>
@@ -211,6 +248,7 @@ export default function Progress() {
           {!loading && (
             <>
           {/* -------------------------------------------------------- goals */}
+          {!isGuest && (
           <div className="stack-s">
             <div className="row-between">
               <p className="section-label">Your goals</p>
@@ -246,6 +284,7 @@ export default function Progress() {
               </div>
             )}
           </div>
+          )}
             </>
           )}
         </div>

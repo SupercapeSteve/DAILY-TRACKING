@@ -9,6 +9,11 @@ nothing to download, no app store, no install.
 **Using it alone?** Everything in Part 1 and Part 2 is the same. In Part 3 just
 pick **"Just for me"** and stop there — skip 3.1 and 3.2 entirely.
 
+**Just want to try it?** Nobody has to sign up at all. The sign-in screen has
+*Have a look around first*, which starts logging straight away and keeps it in
+that browser. Anything logged that way can be carried into a real account
+later. You still need Parts 1 and 2 done first, because the site has to exist.
+
 ---
 
 ## What you need before you start

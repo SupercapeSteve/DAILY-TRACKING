@@ -10,6 +10,7 @@ import { todayISO } from '../../lib/dates'
 import {
   Banner, Button, Card, Confirm, Field, Icon, Input, Sheet, Spinner, SwitchRow, toast,
 } from '../../components/ui'
+import { ACCOUNT_PERKS, clearGuestData, counts as guestCounts } from '../../lib/guest'
 
 const SHARE_ITEMS: { key: ShareKey; title: string; desc: string; icon: 'food' | 'workout' | 'task' | 'day' | 'scale' | 'target' }[] = [
   { key: 'share_food',     title: 'Meals',             desc: 'What you ate each day' ,              icon: 'food' },
@@ -21,7 +22,10 @@ const SHARE_ITEMS: { key: ShareKey; title: string; desc: string; icon: 'food' | 
 ]
 
 export default function Settings() {
-  const { user, profile, link, share, setShareLocal, refresh, signOut, isSolo } = useAuth()
+  const {
+    user, profile, link, share, setShareLocal, refresh, signOut, isSolo,
+    isGuest, exitGuest,
+  } = useAuth()
   const units: Units = profile?.units ?? 'imperial'
 
   const [body, setBody] = useState<BodyProfile | null>(null)
@@ -35,6 +39,7 @@ export default function Settings() {
   const [unlinkAsk, setUnlinkAsk] = useState(false)
   const [soloAsk, setSoloAsk] = useState(false)
   const [shareAsk, setShareAsk] = useState(false)
+  const [wipeAsk, setWipeAsk] = useState(false)
   const [codeSheet, setCodeSheet] = useState(false)
   const [code, setCode] = useState('')
   const [codeErr, setCodeErr] = useState('')
@@ -120,7 +125,7 @@ export default function Settings() {
       setBody(b)
 
       const kg = weightInputToKg(curWeight ? Number(curWeight) : null, units)
-      if (kg && kg !== weightNow) {
+      if (kg && kg !== weightNow && !isGuest) {
         await api.upsertWeight(user!.id, todayISO(), kg)
         setWeightNow(kg)
       }
@@ -176,7 +181,49 @@ export default function Settings() {
       <h1 className="page-title">Settings</h1>
 
       {/* ================================================== SHARING ======= */}
-      {isSolo ? (
+      {isGuest ? (
+        <div className="stack-s">
+          <p className="section-label">You are not signed in</p>
+          <Card className="stack-s card--accent">
+            <div className="row">
+              <span className="dot" style={{ background: 'var(--primary)' }}>
+                <Icon name="sparkle" size={20} />
+              </span>
+              <div className="grow">
+                <p className="bold">Looking around</p>
+                <p className="small muted">
+                  Everything you log is saved in this browser only. Clearing your
+                  history, or opening the app on another device, and it will not
+                  be there.
+                </p>
+              </div>
+            </div>
+            <hr className="divider" />
+            {ACCOUNT_PERKS.map((perk) => (
+              <div key={perk.title} className="row" style={{ alignItems: 'flex-start' }}>
+                <Icon name={perk.icon} size={17}
+                  style={{ color: 'var(--primary)', marginTop: 3, flex: '0 0 auto' }} />
+                <span className="grow">
+                  <span className="bold small" style={{ display: 'block' }}>{perk.title}</span>
+                  <span className="tiny mute-2">{perk.why}</span>
+                </span>
+              </div>
+            ))}
+            <Button variant="primary" size="lg" block onClick={() => exitGuest(false)}>
+              Create an account
+            </Button>
+            <p className="tiny mute-2 center">
+              {guestCounts().total > 0
+                ? `Your ${guestCounts().total} logged ${guestCounts().total === 1 ? 'item comes' : 'items come'} with you - you will be asked once you are in.`
+                : 'It is free, and takes about a minute.'}
+            </p>
+          </Card>
+          <Banner icon="send">
+            Not ready? <strong>Export</strong> below saves everything to a file
+            you keep, which is the only backup a guest has.
+          </Banner>
+        </div>
+      ) : isSolo ? (
         <div className="stack-s">
           <p className="section-label">Privacy</p>
           <Card className="stack-s card--accent" style={{ borderLeftColor: 'var(--violet)' }}>
@@ -304,6 +351,7 @@ export default function Settings() {
       )}
 
       {/* ================================================== JOURNAL ======= */}
+      {!isGuest && (
       <div className="stack-s">
         <p className="section-label">{isSolo ? 'Journal' : 'Private'}</p>
         <Card style={{ padding: 0 }}>
@@ -323,6 +371,7 @@ export default function Settings() {
           </button>
         </Card>
       </div>
+      )}
 
       {/* =================================================== LOOK ======== */}
       <div className="stack-s">
@@ -405,16 +454,34 @@ export default function Settings() {
       {/* =================================================== ACCOUNT ====== */}
       <div className="stack-s">
         <p className="section-label">Account</p>
-        <Card className="stack-s">
-          <p className="small muted">Signed in as</p>
-          <p className="bold truncate">{user.email}</p>
-        </Card>
-        <Button variant="quiet" block icon="logout" onClick={() => setSignOutAsk(true)}>
-          Sign out
-        </Button>
-        <p className="tiny mute-2 center">
-          You do not need to sign out. Staying signed in is what keeps this a one-tap app.
-        </p>
+        {isGuest ? (
+          <>
+            <Card className="stack-s">
+              <p className="small muted">Signed in as</p>
+              <p className="bold">Nobody - you are just looking around</p>
+            </Card>
+            <Button variant="quiet" block icon="trash" onClick={() => setWipeAsk(true)}>
+              Delete everything and start over
+            </Button>
+            <p className="tiny mute-2 center">
+              That clears what this browser is holding. It cannot be undone, so
+              export first if you want to keep it.
+            </p>
+          </>
+        ) : (
+          <>
+            <Card className="stack-s">
+              <p className="small muted">Signed in as</p>
+              <p className="bold truncate">{user.email}</p>
+            </Card>
+            <Button variant="quiet" block icon="logout" onClick={() => setSignOutAsk(true)}>
+              Sign out
+            </Button>
+            <p className="tiny mute-2 center">
+              You do not need to sign out. Staying signed in is what keeps this a one-tap app.
+            </p>
+          </>
+        )}
       </div>
 
       {/* ==================================================== sheets ====== */}
@@ -484,6 +551,7 @@ export default function Settings() {
             )}
           </Field>
 
+          {!isGuest && (
           <div className="row" style={{ alignItems: 'flex-start' }}>
             <div className="grow">
               <Field label={`Current (${weightUnitLabel(units)})`}>
@@ -498,10 +566,25 @@ export default function Settings() {
               </Field>
             </div>
           </div>
+          )}
 
           <Button variant="primary" size="lg" block onClick={saveBody}>Save</Button>
         </div>
       </Sheet>
+
+      <Confirm
+        open={wipeAsk}
+        title="Delete everything?"
+        body="Every meal, workout, task and check-in saved in this browser is removed. This cannot be undone."
+        confirmLabel="Delete it all"
+        onCancel={() => setWipeAsk(false)}
+        onConfirm={() => {
+          clearGuestData()
+          // A full reload is the simplest way to be sure nothing is left in
+          // memory pointing at data that no longer exists.
+          window.location.reload()
+        }}
+      />
 
       <Confirm
         open={signOutAsk}
