@@ -21,7 +21,7 @@ const SHARE_ITEMS: { key: ShareKey; title: string; desc: string; icon: 'food' | 
 ]
 
 export default function Settings() {
-  const { user, profile, link, share, setShareLocal, refresh, signOut } = useAuth()
+  const { user, profile, link, share, setShareLocal, refresh, signOut, isSolo } = useAuth()
   const units: Units = profile?.units ?? 'imperial'
 
   const [body, setBody] = useState<BodyProfile | null>(null)
@@ -33,6 +33,8 @@ export default function Settings() {
   const [bodySheet, setBodySheet] = useState(false)
   const [signOutAsk, setSignOutAsk] = useState(false)
   const [unlinkAsk, setUnlinkAsk] = useState(false)
+  const [soloAsk, setSoloAsk] = useState(false)
+  const [shareAsk, setShareAsk] = useState(false)
   const [codeSheet, setCodeSheet] = useState(false)
   const [code, setCode] = useState('')
   const [codeErr, setCodeErr] = useState('')
@@ -137,6 +139,29 @@ export default function Settings() {
     } catch (e) { toast(e instanceof Error ? e.message : 'Could not save', true) }
   }
 
+  /** Turn "just for me" on. Any connected partner loses access immediately. */
+  async function goPrivate() {
+    try {
+      if (link?.partner_id) await api.unlinkPartner(link.id)
+      await api.upsertProfile({ id: user!.id, solo: true })
+      await refresh()
+      setSoloAsk(false)
+      toast('This is just for you now')
+    } catch (e) { toast(e instanceof Error ? e.message : 'Could not change that', true) }
+  }
+
+  /** Leave solo mode. Creates an invite code but shares nothing yet - every
+   *  category switch stays off until she turns it on herself. */
+  async function enableSharing() {
+    try {
+      await api.upsertProfile({ id: user!.id, solo: false })
+      await api.ensureLink(user!.id)
+      await refresh()
+      setShareAsk(false)
+      toast('Sharing set up - nothing is shared yet')
+    } catch (e) { toast(e instanceof Error ? e.message : 'Could not change that', true) }
+  }
+
   async function switchUnits(u: Units) {
     try {
       await api.upsertProfile({ id: user!.id, units: u })
@@ -151,6 +176,32 @@ export default function Settings() {
       <h1 className="page-title">Settings</h1>
 
       {/* ================================================== SHARING ======= */}
+      {isSolo ? (
+        <div className="stack-s">
+          <p className="section-label">Privacy</p>
+          <Card className="stack-s card--accent" style={{ borderLeftColor: 'var(--violet)' }}>
+            <div className="row">
+              <span className="dot" style={{ background: 'var(--violet)' }}>
+                <Icon name="lock" size={20} />
+              </span>
+              <div className="grow">
+                <p className="bold">Just for you</p>
+                <p className="small muted">
+                  Nothing here is shared with anyone, and there is no one connected
+                  to your account.
+                </p>
+              </div>
+            </div>
+            <p className="tiny mute-2">
+              This is not only a setting in the app - while it is on, the database
+              itself refuses any request to read your data from another account.
+            </p>
+          </Card>
+          <Button variant="quiet" block icon="link" onClick={() => setShareAsk(true)}>
+            Share progress with a partner
+          </Button>
+        </div>
+      ) : (
       <div className="stack-s">
         <p className="section-label">What your partner can see</p>
 
@@ -239,17 +290,28 @@ export default function Settings() {
             </Button>
           </>
         )}
+
+        <Button variant="quiet" block icon="lock" onClick={() => setSoloAsk(true)}>
+          Stop sharing - make this just for me
+        </Button>
       </div>
+      )}
 
       {/* ================================================== JOURNAL ======= */}
       <div className="stack-s">
-        <p className="section-label">Private</p>
+        <p className="section-label">{isSolo ? 'Journal' : 'Private'}</p>
         <Card style={{ padding: 0 }}>
           <button className="entry" style={{ padding: 16 }} onClick={() => navigate('journal')}>
             <span className="dot" style={{ background: 'var(--violet)' }}><Icon name="book" size={20} /></span>
             <span className="grow">
               <span className="bold" style={{ display: 'block' }}>My journal</span>
-              <span className="small muted">Never shared with anyone. Not even a toggle for it.</span>
+              {/* In solo mode "never shared" is true of everything, so saying
+                  it here would be noise rather than reassurance. */}
+              <span className="small muted">
+                {isSolo
+                  ? 'A separate place for longer thoughts, apart from your daily log.'
+                  : 'Never shared with anyone. Not even a toggle for it.'}
+              </span>
             </span>
             <Icon name="next" size={20} />
           </button>
@@ -404,6 +466,26 @@ export default function Settings() {
         confirmLabel="Sign out"
         onCancel={() => setSignOutAsk(false)}
         onConfirm={() => { void signOut() }}
+      />
+
+      <Confirm
+        open={soloAsk}
+        title="Make this just for you?"
+        body={link?.partner_id
+          ? 'Your partner is disconnected immediately and the sharing controls go away. Nothing you have logged is deleted, and you can set sharing up again later.'
+          : 'The sharing controls go away and nothing can be shared with anyone. Nothing you have logged is deleted, and you can turn this back on later.'}
+        confirmLabel="Make it private"
+        onCancel={() => setSoloAsk(false)}
+        onConfirm={goPrivate}
+      />
+
+      <Confirm
+        open={shareAsk}
+        title="Share with a partner?"
+        body="This creates an invite code you can send them. Nothing is shared until you switch on the specific things you want them to see - everything starts off."
+        confirmLabel="Set up sharing"
+        onCancel={() => setShareAsk(false)}
+        onConfirm={enableSharing}
       />
 
       <Confirm

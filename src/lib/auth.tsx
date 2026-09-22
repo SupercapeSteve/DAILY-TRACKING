@@ -17,6 +17,8 @@ interface AuthValue {
   ownerId: string | null
   isOwner: boolean
   isPartner: boolean
+  /** Using the app alone - nobody else is involved at all. */
+  isSolo: boolean
   /** True until the profile row exists and onboarding has been completed. */
   needsOnboarding: boolean
   refresh: () => Promise<void>
@@ -55,9 +57,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Only the owner can read her own switches; the partner never can.
       if (p && p.role === 'owner') {
         setShare(await api.ensureShareSettings(u.id).catch(() => null))
-        // Make sure an owner always has an invite code to show, even if
-        // onboarding was interrupted before it was created.
-        if (!l) setLink(await api.ensureLink(u.id).catch(() => null))
+        // An owner always needs an invite code to show. A solo user does not:
+        // minting one would be creating the very thing they opted out of.
+        if (!l && !p.solo) setLink(await api.ensureLink(u.id).catch(() => null))
       } else {
         setShare(null)
       }
@@ -112,6 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthValue>(() => {
     const isPartner = profile?.role === 'partner'
     const isOwner = profile?.role === 'owner'
+    const isSolo = isOwner && profile?.solo === true
     return {
       loading,
       user,
@@ -121,6 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ownerId: isPartner ? (link?.owner_id ?? null) : (user?.id ?? null),
       isOwner,
       isPartner,
+      isSolo,
       needsOnboarding: Boolean(user) && (!profile || !profile.onboarded),
       refresh,
       setShareLocal: setShare,

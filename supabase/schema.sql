@@ -46,6 +46,10 @@ create table public.profiles (
   role         text not null default 'owner' check (role in ('owner','partner')),
   units        text not null default 'imperial' check (units in ('imperial','metric')),
   onboarded    boolean not null default false,
+  -- "just for me" mode. While this is true, can_view() refuses every partner
+  -- read regardless of links or switches, so solo is a database guarantee
+  -- rather than a hidden screen.
+  solo         boolean not null default false,
   created_at   timestamptz not null default now()
 );
 
@@ -234,23 +238,31 @@ as $fn$
   select
     -- you can always see your own data
     p_owner = (select auth.uid())
-    or exists (
-      select 1
-      from public.partner_links pl
-      join public.share_settings ss on ss.owner_id = pl.owner_id
-      where pl.owner_id       = p_owner
-        and pl.partner_id     = (select auth.uid())
-        and pl.status         = 'accepted'      -- gate 1: linked
-        and ss.sharing_paused = false           -- gate 2: not paused
-        and case p_category                     -- gate 3: this category is on
-              when 'food'    then ss.share_food
-              when 'workout' then ss.share_workouts
-              when 'task'    then ss.share_tasks
-              when 'day'     then ss.share_day
-              when 'body'    then ss.share_body
-              when 'goals'   then ss.share_goals
-              else false                        -- unknown category -> denied
-            end
+    or (
+      -- gate 0: the owner is not in "just for me" mode. This is checked first
+      -- and on its own, so solo cannot be defeated by any combination of
+      -- links, switches or app bugs.
+      not coalesce(
+            (select p.solo from public.profiles p where p.id = p_owner),
+            true)                               -- no profile row -> deny
+      and exists (
+        select 1
+        from public.partner_links pl
+        join public.share_settings ss on ss.owner_id = pl.owner_id
+        where pl.owner_id       = p_owner
+          and pl.partner_id     = (select auth.uid())
+          and pl.status         = 'accepted'    -- gate 1: linked
+          and ss.sharing_paused = false         -- gate 2: not paused
+          and case p_category                   -- gate 3: this category is on
+                when 'food'    then ss.share_food
+                when 'workout' then ss.share_workouts
+                when 'task'    then ss.share_tasks
+                when 'day'     then ss.share_day
+                when 'body'    then ss.share_body
+                when 'goals'   then ss.share_goals
+                else false                      -- unknown category -> denied
+              end
+      )
     );
 $fn$;
 

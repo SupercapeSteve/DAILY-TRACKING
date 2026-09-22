@@ -20,6 +20,13 @@ const OWNER_TABS: { key: string; label: string; icon: IconName }[] = [
   { key: 'settings', label: 'Me', icon: 'user' },
 ]
 
+// Solo has no partner, so the notes-from-your-partner tab would always be empty.
+const SOLO_TABS: { key: string; label: string; icon: IconName }[] = [
+  { key: 'today', label: 'Today', icon: 'home' },
+  { key: 'progress', label: 'Progress', icon: 'chart' },
+  { key: 'settings', label: 'Me', icon: 'user' },
+]
+
 const PARTNER_TABS: { key: string; label: string; icon: IconName }[] = [
   { key: 'today', label: 'Progress', icon: 'chart' },
   { key: 'notes', label: 'Send note', icon: 'message' },
@@ -27,24 +34,24 @@ const PARTNER_TABS: { key: string; label: string; icon: IconName }[] = [
 ]
 
 export default function App() {
-  const { loading, user, needsOnboarding, isPartner } = useAuth()
+  const { loading, user, needsOnboarding, isPartner, isSolo } = useAuth()
   const [route, go] = useRoute()
   const base = routeBase(route)
 
   // Land on a known tab rather than whatever stale hash was in the URL.
   useEffect(() => {
-    const tabs = (isPartner ? PARTNER_TABS : OWNER_TABS).map((t) => t.key)
-    if (user && !needsOnboarding && !tabs.includes(base) && base !== 'journal') {
+    const keys = (isPartner ? PARTNER_TABS : isSolo ? SOLO_TABS : OWNER_TABS).map((t) => t.key)
+    if (user && !needsOnboarding && !keys.includes(base) && base !== 'journal') {
       go('today', true)
     }
-  }, [user, needsOnboarding, isPartner, base, go])
+  }, [user, needsOnboarding, isPartner, isSolo, base, go])
 
   if (!isConfigured) return <NotConfigured />
   if (loading) return <Spinner full label="Loading..." />
   if (!user) return <><Auth /><ToastHost /></>
   if (needsOnboarding) return <><Onboarding /><ToastHost /></>
 
-  const tabs = isPartner ? PARTNER_TABS : OWNER_TABS
+  const tabs = isPartner ? PARTNER_TABS : isSolo ? SOLO_TABS : OWNER_TABS
 
   return (
     <div className="app">
@@ -58,7 +65,7 @@ export default function App() {
         <>
           {base === 'today' && <Today />}
           {base === 'progress' && <Progress />}
-          {base === 'notes' && <Notes />}
+          {base === 'notes' && !isSolo && <Notes />}
           {base === 'settings' && <Settings />}
           {base === 'journal' && <Journal />}
         </>

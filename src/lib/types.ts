@@ -11,6 +11,9 @@ export interface Profile {
   role: Role
   units: Units
   onboarded: boolean
+  /** "Just for me" mode: no partner, no sharing UI, and can_view() refuses
+   *  every partner read at the database level while this is true. */
+  solo: boolean
   created_at: string
 }
 

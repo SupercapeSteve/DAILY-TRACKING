@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import * as api from '../../lib/api'
+import { useAuth } from '../../lib/auth'
 import { guessMealType } from '../../lib/dates'
 import type { DayLog, Entry, EntryKind, Intensity, MealType } from '../../lib/types'
 import {
@@ -43,6 +44,7 @@ export default function LogSheet({
   editDay?: DayLog | null
   startMode?: Mode
 }) {
+  const { isSolo } = useAuth()
   const [mode, setMode] = useState<Mode>('pick')
   const [busy, setBusy] = useState(false)
   const [recents, setRecents] = useState<string[]>([])
@@ -176,7 +178,9 @@ export default function LogSheet({
     .filter((v, i, arr) => arr.findIndex((x) => x.toLowerCase() === v.toLowerCase()) === i)
     .slice(0, 10)
 
-  const privacyRow = (
+  // In solo mode every entry is already private, so offering a "keep this
+  // one private" switch would imply the others are not.
+  const privacyRow = isSolo ? null : (
     <Card className="card--tint row" style={{ padding: '10px 14px' }}>
       <Icon name={isPrivate ? 'lock' : 'eye'} size={20}
         style={{ color: isPrivate ? 'var(--primary)' : 'var(--text-mute)', flex: '0 0 auto' }} />

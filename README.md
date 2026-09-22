@@ -1,11 +1,23 @@
 # Daily
 
-A small, private daily log for one person — meals, workouts, tasks, and how the
-day actually went — with a **read-only** dashboard for a partner that shows
-**only what the person logging chooses to share**.
+A small, private daily log — meals, workouts, tasks, and how the day actually
+went. Use it **entirely on your own**, or share some of it with a partner who
+gets a **read-only** view of **only what you choose to show them**.
 
-It is a website, not an app. She opens a link on her phone and she's in. There
+It is a website, not an app. You open a link on your phone and you're in. There
 is nothing to download and no install step, ever.
+
+## Two ways to use it
+
+You pick one when you create the account, and you can switch either direction
+later in Settings.
+
+- **Just for me** — nobody else is involved. No invite code, no sharing
+  controls, no per-entry privacy switches, and the notes tab is gone. While
+  this is on, `can_view()` refuses every cross-account read at the database
+  level, so it is a guarantee and not a hidden screen.
+- **Me + a partner** — you log, they get a read-only dashboard of whichever
+  categories you switch on. Everything starts off.
 
 👉 **To get this running, follow [SETUP.md](SETUP.md).**
 
@@ -24,6 +36,10 @@ three separate gates must all pass:
 1. an accepted link between the two accounts exists
 2. sharing is not paused
 3. that specific category is switched on
+
+…and before any of that, gate 0: the owner must not be in **solo** mode.
+That one is checked first and on its own, so solo cannot be defeated by any
+combination of links, switches or app bugs.
 
 …and then the individual row must not be flagged private.
 
@@ -130,7 +146,7 @@ one table means one set of security rules to get right instead of three.
 
 | Table | Holds | Partner can read when |
 |---|---|---|
-| `profiles` | name, role, units | linked (name only; nothing sensitive lives here) |
+| `profiles` | name, role, units, solo flag | linked (name only; nothing sensitive lives here) |
 | `partner_links` | the connection + invite code | it's their own row |
 | `share_settings` | the six switches + pause | **never** |
 | `body_profile` | birthdate, height, goal weight | `share_body` |
@@ -159,6 +175,9 @@ What was actually checked, and how:
 | Read paths that are neither own-row nor `can_view`-gated | 0 |
 | Write policies pinning the row to the caller | 18/18 |
 | Journal reachable by a partner | no policy exists |
+| Solo gate present in `can_view`, ahead of the partner lookup | confirmed by AST inspection |
+| Migration `001_solo_mode.sql` parses | 5 statements, clean |
+| Solo mode UI (log sheet privacy row, sharing banner, notes tab) | absent, verified in DOM |
 | Screens rendered and inspected on a 375×812 viewport | sign-in, onboarding, today, log sheet, progress, settings, partner dashboard |
 | Layout measured at 1366px | sidebar 244px, content 1100px, 2-col grid 596/398, no horizontal overflow |
 | Layout measured at 390px | 66px bottom bar, wrappers collapsed to `contents`, no horizontal overflow |

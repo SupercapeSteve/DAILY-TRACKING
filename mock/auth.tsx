@@ -8,12 +8,15 @@ const PARTNER = '00000000-0000-0000-0000-0000000000bb'
 
 const isPartner = new URLSearchParams(window.location.search).get('role') === 'partner'
 
+const isSoloPreview = new URLSearchParams(window.location.search).get('role') === 'solo'
+
 const profile: Profile = {
   id: isPartner ? PARTNER : OWNER,
   display_name: isPartner ? 'Alex' : 'Sam',
   role: isPartner ? 'partner' : 'owner',
   units: 'imperial',
   onboarded: true,
+  solo: isSoloPreview,
   created_at: '2026-09-01T00:00:00Z',
 }
 
@@ -34,11 +37,12 @@ const value = {
   loading: false,
   user: { id: profile.id, email: isPartner ? 'alex@example.com' : 'sam@example.com' } as never,
   profile,
-  link,
+  link: isSoloPreview ? null : link,
   share: isPartner ? null : share,
   ownerId: OWNER,
   isOwner: !isPartner,
   isPartner,
+  isSolo: !isPartner && isSoloPreview,
   needsOnboarding: false,
   refresh: async () => {},
   setShareLocal: () => {},

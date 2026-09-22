@@ -3,8 +3,11 @@
 Everything here is a thing **I could not do for you**, because it needs your own
 accounts. Budget about 20 minutes. You only ever do this once.
 
-At the end you will have a normal web link. You text it to her, she taps it on
-her phone, and that's it — nothing to download, no app store, no install.
+At the end you will have a normal web link. Open it on a phone and you're in —
+nothing to download, no app store, no install.
+
+**Using it alone?** Everything in Part 1 and Part 2 is the same. In Part 3 just
+pick **"Just for me"** and stop there — skip 3.1 and 3.2 entirely.
 
 ---
 
@@ -47,7 +50,11 @@ You should see a results table at the bottom listing 10 tables, every one with
 `rls_enabled = true`. If any row says `false`, stop and tell me.
 
 > If you ever re-run this file it wipes the data and rebuilds from scratch.
-> That's intentional, but don't do it after she has started logging.
+> That's intentional, but don't do it after someone has started logging.
+>
+> **Already ran an older copy of schema.sql and have data to keep?** Don't
+> re-run it. Instead run `supabase/migrations/001_solo_mode.sql`, which adds
+> "just for me" mode without touching a single row.
 
 ### 1.4 Turn off email confirmation
 
@@ -153,7 +160,20 @@ which is why you had to do step 1 first.
 
 ---
 
-# Part 3 — Set it up with her (about 4 minutes)
+# Part 3 — Create the account(s)
+
+## If it's just for you (about 1 minute)
+
+1. Open the link.
+2. **Create account**, enter your email and a password.
+3. Pick **"Just for me"**.
+4. Enter your name, then fill in the basics or tap **Skip for now**.
+5. Done. There is no code, no sharing screen and nobody to invite.
+
+If you change your mind later, Settings has *Share progress with a partner* —
+it creates a code and starts everything switched off.
+
+## If you're sharing with a partner (about 4 minutes)
 
 Do this bit together, sitting next to each other. It's easier than explaining
 it over text.
@@ -163,7 +183,7 @@ it over text.
 1. Send her the link. She taps it — it opens in her phone browser.
 2. She taps **Create account**, puts in her email and a password, taps
    **Create my account**.
-3. She picks **"I'm tracking my progress"**.
+3. She picks **"Me, and share some with my partner"**.
 4. She types her first name.
 5. She fills in birthday / height / weight — or taps **Skip for now**.
 6. **She chooses what to share with you.** Let her do this part herself and
@@ -213,6 +233,11 @@ rebuild, re-drag. Path B: check the names are exactly `VITE_SUPABASE_URL` and
 On her Settings screen, under the invite code, there's a link:
 *"Wait — I was given a code instead."* That switches an account over. Same fix
 works if you accidentally signed up as the tracker.
+
+**Picked "Just for me" but actually want to share (or the reverse)**
+Settings → *Share progress with a partner*, or *Stop sharing — make this just
+for me*. Neither one deletes anything you've logged. Going private disconnects
+a connected partner immediately and issues a fresh code.
 
 **You can see nothing / everything says "not shared"**
 That's not a bug — that's her switches. Only she can change them. Ask her,

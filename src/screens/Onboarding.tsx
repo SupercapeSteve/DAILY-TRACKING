@@ -25,7 +25,8 @@ export default function Onboarding() {
   const [step, setStep] = useState<Step>('role')
   const [busy, setBusy] = useState(false)
 
-  const [role, setRole] = useState<'owner' | 'partner' | null>(null)
+  // 'solo' is not a database role - it maps to role 'owner' with solo = true.
+  const [role, setRole] = useState<'solo' | 'owner' | 'partner' | null>(null)
   const [name, setName] = useState(profile?.display_name ?? '')
   const [units, setUnits] = useState<Units>(profile?.units ?? 'imperial')
 
@@ -48,7 +49,7 @@ export default function Onboarding() {
 
   if (!user) return <Spinner full />
 
-  async function pickRole(r: 'owner' | 'partner') {
+  async function pickRole(r: 'solo' | 'owner' | 'partner') {
     setRole(r)
     setStep('name')
   }
@@ -60,7 +61,8 @@ export default function Onboarding() {
       await api.upsertProfile({
         id: user!.id,
         display_name: name.trim(),
-        role: role ?? 'owner',
+        role: role === 'partner' ? 'partner' : 'owner',
+        solo: role === 'solo',
         units,
         onboarded: false,
       })
@@ -87,7 +89,14 @@ export default function Onboarding() {
         const kg = weightInputToKg(weight ? Number(weight) : null, units)
         if (kg) await api.upsertWeight(user!.id, todayISO(), kg)
       }
-      setStep('sharing')
+      // A solo account has nothing to share and nobody to invite, so it goes
+      // straight to the end. No link row is created for it at all.
+      if (role === 'solo') {
+        await api.upsertProfile({ id: user!.id, onboarded: true })
+        setStep('done')
+      } else {
+        setStep('sharing')
+      }
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Could not save that.', true)
     } finally { setBusy(false) }
@@ -138,15 +147,31 @@ export default function Onboarding() {
           </div>
 
           <div className="stack">
+            <Card style={{ padding: 0 }}>
+              <button className="entry" style={{ padding: 18 }} onClick={() => pickRole('solo')}>
+                <span className="dot" style={{ background: 'var(--violet)' }}><Icon name="lock" size={20} /></span>
+                <span className="grow">
+                  <span className="bold" style={{ display: 'block', fontSize: 17 }}>
+                    Just for me
+                  </span>
+                  <span className="small muted">
+                    Private. No one else is involved and nobody can see any of it.
+                  </span>
+                </span>
+                <Icon name="next" size={20} />
+              </button>
+            </Card>
+
             <Card className="stack-s" style={{ padding: 0 }}>
               <button className="entry" style={{ padding: 18 }} onClick={() => pickRole('owner')}>
                 <span className="dot dot--workout"><Icon name="sparkle" size={20} /></span>
                 <span className="grow">
                   <span className="bold" style={{ display: 'block', fontSize: 17 }}>
-                    I'm tracking my progress
+                    Me, and share some with my partner
                   </span>
                   <span className="small muted">
-                    You log your day. You decide what your partner can see.
+                    You log your day and pick what they can see. You can change
+                    it or go fully private later.
                   </span>
                 </span>
                 <Icon name="next" size={20} />
@@ -182,7 +207,7 @@ export default function Onboarding() {
               />
             </Field>
 
-            {role === 'owner' && (
+            {role !== 'partner' && (
               <Field label="Units">
                 <div className="seg">
                   <button className="seg__btn" data-on={units === 'imperial'}
@@ -314,6 +339,26 @@ export default function Onboarding() {
             <h1>You're all set</h1>
           </div>
 
+          {role === 'solo' ? (
+            <Card className="stack-s">
+              <div className="row">
+                <span className="dot" style={{ background: 'var(--violet)' }}>
+                  <Icon name="lock" size={20} />
+                </span>
+                <div className="grow">
+                  <p className="bold">This is yours alone</p>
+                  <p className="small muted">
+                    Nothing is shared with anyone. There is no one to invite and
+                    nothing for anyone else to see.
+                  </p>
+                </div>
+              </div>
+              <p className="tiny mute-2">
+                If you ever want to share progress with someone, you can turn
+                that on in Settings. Until then it stays private.
+              </p>
+            </Card>
+          ) : (
           <Card className="stack">
             <p className="bold center">Your partner's code</p>
             <div className="code">{inviteCode}</div>
@@ -328,6 +373,7 @@ export default function Onboarding() {
               } catch { toast('Press and hold the code to copy it', true) }
             }}>Copy code</Button>
           </Card>
+          )}
 
           <Button variant="primary" size="lg" block busy={busy} onClick={finish}>
             Start my first day

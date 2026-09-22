@@ -13,7 +13,7 @@ import { navigate } from '../../lib/router'
 const MOODS = ['\u{1F622}', '\u{1F641}', '\u{1F610}', '\u{1F642}', '\u{1F604}']
 
 export default function Today() {
-  const { user, profile, share, link } = useAuth()
+  const { user, profile, share, link, isSolo } = useAuth()
   const [date, setDate] = useState(todayISO())
   const [entries, setEntries] = useState<Entry[]>([])
   const [days, setDays] = useState<DayLog[]>([])
@@ -78,7 +78,9 @@ export default function Today() {
         <p className="mute-2 small">{longDate(date)}</p>
       </div>
 
-      {/* sharing state - always visible, never buried */}
+      {/* Sharing state - always visible, never buried. A solo account has
+          nothing to share, so the whole control would just be noise. */}
+      {!isSolo && (
       <button
         className="banner"
         onClick={() => navigate('settings')}
@@ -96,6 +98,7 @@ export default function Today() {
         </span>
         <Icon name="next" size={16} />
       </button>
+      )}
 
       {/* ----------------------------------------------------- week strip */}
       <Card className="stack-s">
@@ -153,7 +156,7 @@ export default function Today() {
                     {dayLog.water_cups != null && dayLog.water_cups > 0 &&
                       <span><Icon name="water" size={13} />{dayLog.water_cups} cups</span>}
                     {dayLog.energy != null && <span><Icon name="bolt" size={13} />energy {dayLog.energy}/5</span>}
-                    {dayLog.is_private && <span className="pill pill--private"><Icon name="lock" />Just me</span>}
+                    {dayLog.is_private && !isSolo && <span className="pill pill--private"><Icon name="lock" />Just me</span>}
                   </span>
                 </span>
                 <Icon name="edit" size={18} />
@@ -218,7 +221,7 @@ export default function Today() {
                         {e.intensity && <span>{e.intensity}</span>}
                         {e.calories ? <span>{e.calories} cal</span> : null}
                         {e.protein_g ? <span>{e.protein_g}g protein</span> : null}
-                        {e.is_private && <span className="pill pill--private"><Icon name="lock" />Just me</span>}
+                        {e.is_private && !isSolo && <span className="pill pill--private"><Icon name="lock" />Just me</span>}
                       </span>
                       {e.notes.trim() && <span className="small muted pre-wrap" style={{ display: 'block', marginTop: 4 }}>{e.notes}</span>}
                     </span>
